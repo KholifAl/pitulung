@@ -1,0 +1,62 @@
+:root {
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Clean White & Deep Maroon Palette */
+  --bg-white: #ffffff;
+  --bg-subtle: #fcf9fa;
+  --bg-tint: #f8f1f3;
+  --bg-tint-strong: #f2e4e8;
+
+  --maroon-950: #2d0912;
+  --maroon-900: #460f1d;
+  --maroon-800: #631729;
+  --maroon-700: #7c1f35;
+  --maroon-600: #962943;
+  --maroon-soft: rgba(100, 23, 41, 0.08);
+  --maroon-border: rgba(100, 23, 41, 0.16);
+  --maroon-border-strong: rgba(100, 23, 41, 0.32);
+
+  --text-main: #141112;
+  --text-secondary: #4e4548;
+  --text-muted: #7d7175;
+  --border-light: #ece5e7;
+
+  font-family: var(--font-sans);
+  color: var(--text-main);
+  background-color: var(--bg-white);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background-color: var(--bg-white);
+  color: var(--text-main);
+  overflow-x: hidden;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
