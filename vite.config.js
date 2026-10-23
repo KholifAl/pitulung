@@ -288,6 +288,7 @@ export default defineConfig(({ mode }) => {
   // Hanya variabel berawalan VITE_ yang ikut ke browser, jadi key AI tetap rahasia.
   const env = { ...process.env, ...loadEnv(mode, process.cwd(), '') }
   return {
+    base: './',
     plugins: [react(), pitulungServerPlugin(env)],
   }
 })
