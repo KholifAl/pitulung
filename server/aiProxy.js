@@ -22,14 +22,14 @@ const NON_CHAT_MODEL_PATTERN =
   /(embed|embedding|image|imagen|veo|tts|audio|speech|transcribe|whisper|realtime|live|dall-e|moderation|search|aqa|computer-use|robotics)/i
 
 const MAX_BODY_BYTES = 12 * 1024 * 1024
-const MAX_INPUT_CHARS = 55000
+export const MAX_INPUT_CHARS = 55000
 const RATE_LIMIT_WINDOW_MS = 60 * 1000
 const RATE_LIMIT_MAX = 30
 const REQUEST_TIMEOUT_MS = 55000
 
 const rateBuckets = new Map()
 
-function getQuotaStatus(ip, recordHit = false) {
+export function getQuotaStatus(ip, recordHit = false) {
   const now = Date.now()
   const bucket = rateBuckets.get(ip) || []
   const recent = bucket.filter((t) => now - t < RATE_LIMIT_WINDOW_MS)
@@ -75,19 +75,19 @@ function readJsonBody(req) {
   })
 }
 
-function resolveApiKey(provider, userKey, env) {
+export function resolveApiKey(provider, userKey, env) {
   const clean = typeof userKey === 'string' ? userKey.trim() : ''
   if (clean) return clean
-  return env[PROVIDER_DEFAULTS[provider].envKey] || ''
+  return env?.[PROVIDER_DEFAULTS[provider].envKey] || ''
 }
 
-function resolveOpenclawUrl(baseUrl, env) {
-  const raw = (baseUrl || env.OPENCLAW_BASE_URL || 'http://127.0.0.1:18789').trim()
+export function resolveOpenclawUrl(baseUrl, env) {
+  const raw = (baseUrl || env?.OPENCLAW_BASE_URL || 'http://127.0.0.1:18789').trim()
   if (!/^https?:\/\//i.test(raw)) throw new Error('URL OpenClaw harus diawali http:// atau https://')
   return raw.replace(/\/+$/, '')
 }
 
-async function fetchWithTimeout(url, options, timeoutMs = REQUEST_TIMEOUT_MS) {
+export async function fetchWithTimeout(url, options, timeoutMs = REQUEST_TIMEOUT_MS) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
@@ -107,7 +107,7 @@ async function readProviderError(res) {
 }
 
 /** Adapter per provider: semua mengembalikan string teks jawaban AI */
-async function callProvider({ provider, model, apiKey, baseUrl, system, input, attachment }) {
+export async function callProvider({ provider, model, apiKey, baseUrl, system, input, attachment }) {
   const hasBinaryAttachment = Boolean(attachment?.base64 && attachment?.mimeType)
 
   if (provider === 'openai' || provider === 'openclaw') {
@@ -234,7 +234,7 @@ async function callProvider({ provider, model, apiKey, baseUrl, system, input, a
 }
 
 /** Ambil daftar model terbaru langsung dari provider */
-async function listProviderModels({ provider, apiKey, baseUrl }) {
+export async function listProviderModels({ provider, apiKey, baseUrl }) {
   if (provider === 'gemini') {
     const res = await fetchWithTimeout(
       'https://generativelanguage.googleapis.com/v1beta/models?pageSize=200',
