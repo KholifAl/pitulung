@@ -715,7 +715,8 @@ function App() {
                   document.getElementById('alat')?.scrollIntoView({ behavior: 'smooth' })
                 }}
               >
-                Alat Bantu
+                <span className="nav-label-full">Alat Bantu</span>
+                <span className="nav-label-short">Alat</span>
               </button>
               <button
                 type="button"
@@ -725,7 +726,8 @@ function App() {
                 }}
               >
                 <IconCilok size={16} />
-                <span>Traktir Cilok</span>
+                <span className="nav-label-full">Traktir Cilok</span>
+                <span className="nav-label-short">Traktir</span>
                 <IconArrowUpRight size={14} />
               </button>
             </div>

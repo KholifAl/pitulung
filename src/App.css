@@ -131,6 +131,10 @@
   gap: 16px;
 }
 
+.nav-label-short {
+  display: none;
+}
+
 .clean-nav-link {
   text-decoration: none;
   color: var(--text-secondary);
@@ -2491,21 +2495,302 @@
   }
 
   .quick-features-grid,
-  .progressive-cards-grid,
+  .progressive-cards-grid {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 14px;
+    padding: 2px 2px 8px;
+  }
+
+  .quick-features-grid::-webkit-scrollbar,
+  .progressive-cards-grid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .quick-feature-card,
+  .prog-card {
+    flex: 0 0 68%;
+    max-width: 340px;
+    scroll-snap-align: start;
+  }
+
   .clean-voting-grid {
     grid-template-columns: 1fr;
   }
 
   .clean-tipjar-banner {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
+    text-align: center;
+    gap: 22px;
+  }
+
+  .ctb-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .ctb-badge-row,
+  .ctb-wallets-row {
+    justify-content: center;
+  }
+
+  .ctb-right {
+    display: flex;
+    justify-content: center;
+    width: 100%;
   }
 }
 
 @media (max-width: 640px) {
+  .main-container {
+    padding: 0 16px 48px;
+  }
+
+  /* Navbar Mobile: Hanya ikon logo (tanpa teks Pitulung) + label singkat "Alat" & "Traktir" */
+  .navbar-sticky-stage {
+    height: 68px;
+  }
+
   .clean-navbar {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    padding: 16px 0 14px;
+    gap: 10px;
+  }
+
+  .clean-navbar.is-island {
+    margin-top: 10px;
+    max-width: 100%;
+    padding: 8px 10px 8px 14px;
+  }
+
+  .brand-logo-text-img,
+  .clean-navbar.is-island .brand-logo-text-img {
+    display: none;
+  }
+
+  .brand-logo-img {
+    height: 32px;
+  }
+
+  .clean-navbar.is-island .brand-logo-img {
+    height: 26px;
+  }
+
+  .nav-label-full {
+    display: none;
+  }
+
+  .nav-label-short {
+    display: inline;
+  }
+
+  .nav-right-actions,
+  .clean-navbar.is-island .nav-right-actions {
+    gap: 14px;
+  }
+
+  .clean-nav-link {
+    font-size: 0.88rem;
+  }
+
+  .nav-cta-outline {
+    padding: 7px 13px;
+    font-size: 0.82rem;
+    gap: 6px;
+  }
+
+  /* Hero Mobile */
+  .clean-hero-section {
+    padding: 28px 0 22px;
+  }
+
+  .editorial-hero-title {
+    font-size: clamp(2rem, 8.5vw, 2.65rem);
+    margin-bottom: 14px;
+  }
+
+  .inline-arrow-pill {
+    padding: 6px 18px;
+    margin: 0 4px;
+  }
+
+  .inline-arrow-pill svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .editorial-hero-subtitle {
+    font-size: 0.96rem;
+    margin-bottom: 24px;
+    padding: 0 6px;
+  }
+
+  /* Workspace Card & Center Alignments on Mobile */
+  .clean-workspace-card {
+    padding: 18px 16px;
+    border-radius: 22px;
+  }
+
+  .empty-doc-strip {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 8px;
+  }
+
+  .empty-doc-left {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .active-doc-banner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .active-doc-actions {
+    justify-content: flex-end;
+    width: 100%;
+  }
+
+  .clean-text-input,
+  .clean-dropdown-container.size-large .clean-dropdown-trigger,
+  .clean-submit-btn {
+    height: 52px;
+  }
+
+  .clean-submit-btn {
+    width: 100%;
+    padding: 0 8px 0 20px;
+  }
+
+  .workspace-footer-bar {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 10px;
+  }
+
+  .quota-status-indicator {
+    margin: 0 auto;
+  }
+
+  .preset-pills-group {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .preset-caption {
+    width: 100%;
+    text-align: center;
+    margin-right: 0;
+    margin-bottom: 2px;
+  }
+
+  /* Result Panel Mobile */
+  .clean-result-container {
+    padding: 14px 14px;
+  }
+
+  .clean-result-header {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .clean-result-meta,
+  .clean-result-controls {
+    justify-content: center;
+  }
+
+  /* Quick Features & Alat Bantu Horizontal Scroll Mobile */
+  .quick-features-grid,
+  .progressive-cards-grid {
     gap: 12px;
+    padding: 2px 2px 6px;
+  }
+
+  .quick-feature-card {
+    flex: 0 0 82%;
+    max-width: 290px;
+    align-items: flex-start;
+    text-align: left;
+    padding: 16px 18px;
+  }
+
+  .qf-top {
+    width: 100%;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .prog-card {
+    flex: 0 0 84%;
+    max-width: 300px;
+    min-height: 245px;
+    padding: 18px 18px 16px;
+  }
+
+  /* Framed Geometric Section ("Alat Bantu") Mobile */
+  .framed-geometric-section {
+    padding: 24px 16px;
+    border-radius: 26px;
+    margin-top: 28px;
+  }
+
+  .framed-section-header {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .framed-section-header h2 {
+    font-size: 1.38rem;
+  }
+
+  .framed-section-header p {
+    max-width: 100%;
+    text-align: center;
+  }
+
+  /* Tip-Jar Banner Mobile */
+  .clean-tipjar-banner {
+    padding: 22px 18px;
+    border-radius: 24px;
+    margin-top: 28px;
+  }
+
+  .ctb-left h2 {
+    font-size: 1.28rem;
+  }
+
+  /* Footer Mobile (Center Aligned) */
+  .clean-footer {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 12px;
+    margin-top: 28px;
+  }
+
+  .footer-brand-copy,
+  .footer-engine-note {
+    justify-content: center;
+    flex-wrap: wrap;
   }
 
   .config-row-two {
