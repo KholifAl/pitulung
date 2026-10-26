@@ -215,6 +215,63 @@ function IconUpload({ size = 14 }) {
   )
 }
 
+function IconCopy({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect
+        x="9"
+        y="9"
+        width="13"
+        height="13"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M5 15H4C2.89543 15 2 14.1046 2 13V4C2 2.89543 2.89543 2 4 2H13C14.1046 2 15 2.89543 15 4V5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function IconDownload({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15M7 10L12 15M12 15L17 10M12 15V3"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function truncateFileName(name = '', maxLen = 24) {
+  const clean = String(name || '').trim()
+  if (clean.length <= maxLen) return clean
+  const dotIdx = clean.lastIndexOf('.')
+  if (dotIdx > 0 && clean.length - dotIdx <= 6) {
+    const ext = clean.slice(dotIdx)
+    const keep = Math.max(8, maxLen - ext.length - 3)
+    return `${clean.slice(0, keep)}...${ext}`
+  }
+  return `${clean.slice(0, maxLen)}...`
+}
+
+function formatUiText(text = '') {
+  // Pendekkan hanya nama file / kata tunggal tanpa spasi yang terlalu panjang agar tidak menabrak dinding kartu,
+  // sedangkan isi kalimat & hasil asli tetap utuh.
+  return String(text || '').replace(/\S{26,}/g, (token) => truncateFileName(token, 22))
+}
+
 const DOC_QUICK_QUESTIONS = [
   { label: 'Tabel RAB', query: 'Ekstrak seluruh rincian barang, kuantitas, harga satuan, dan subtotal di RAB menjadi tabel', format: 'Ekstrak Tabel Data (.csv / Excel)' },
   { label: 'Termin Bayar', query: 'Apa saja jadwal pengiriman dan syarat termin pembayarannya?', format: 'Tanya Jawab & Tabel Terverifikasi' },
@@ -461,7 +518,7 @@ function App() {
     if (!file) return
     setErrorMsg('')
     setIsProcessing(true)
-    setProcessStep(`Membaca & memverifikasi dokumen "${file.name}"...`)
+    setProcessStep(`Membaca & memverifikasi dokumen "${truncateFileName(file.name)}"...`)
     try {
       const doc = await readUploadedDocument(file)
       setUploadedDoc(doc)
@@ -522,7 +579,7 @@ function App() {
     setIsProcessing(true)
     setProcessStep(
       docToUse
-        ? `Memverifikasi isi dokumen "${docToUse.name}" & mengekstrak tabel...`
+        ? `Memverifikasi isi dokumen "${truncateFileName(docToUse.name)}" & mengekstrak tabel...`
         : apiConfig.provider !== 'local'
           ? `${getProviderMeta(apiConfig.provider).label} lagi mengekstrak & memverifikasi datamu...`
           : 'Lagi mengekstrak & merapikan datamu, tunggu sebentar ya...'
@@ -676,6 +733,7 @@ function App() {
   }
 
   const activeProvider = getProviderMeta(apiConfig.provider)
+  const isLocalMode = apiConfig.provider === 'local'
   const baseModels = liveModelsByProvider[apiConfig.provider] || activeProvider.models || []
   const modelOptions =
     apiConfig.model && !baseModels.some((m) => m.id === apiConfig.model)
@@ -795,15 +853,19 @@ function App() {
                     </span>
                     <div className="active-doc-text">
                       <div className="active-doc-title-row">
-                        <strong>{uploadedDoc.name}</strong>
-                        <span className="active-doc-tag">{uploadedDoc.docType || 'Dokumen'}</span>
-                        <span className="active-doc-verified">
-                          <IconCheck size={11} />
-                          <span>Terverifikasi</span>
+                        <strong className="active-doc-filename" title={uploadedDoc.name}>
+                          {truncateFileName(uploadedDoc.name)}
+                        </strong>
+                        <span
+                          className="active-doc-verified"
+                          title={isLocalMode ? 'Siap Diekstrak' : 'Terverifikasi'}
+                          aria-label={isLocalMode ? 'Siap Diekstrak' : 'Terverifikasi'}
+                        >
+                          <IconCheck size={12} />
                         </span>
                       </div>
                       <div className="active-doc-questions">
-                        <span>Tanya cepat:</span>
+                        <span>{isLocalMode ? 'Ekstrak cepat:' : 'Tanya cepat:'}</span>
                         {DOC_QUICK_QUESTIONS.map((q) => (
                           <button
                             key={q.label}
@@ -885,8 +947,12 @@ function App() {
                   className="clean-text-input"
                   placeholder={
                     uploadedDoc
-                      ? `Tanyakan isi "${uploadedDoc.name}" atau minta tabel...`
-                      : 'Tanya isi dokumen, tempel link web, atau masukkan chat orderan...'
+                      ? isLocalMode
+                        ? `Ketik kata kunci untuk diekstrak dari "${truncateFileName(uploadedDoc.name, 20)}" (mis. harga, tanggal, denda)...`
+                        : `Tanyakan isi "${truncateFileName(uploadedDoc.name, 20)}" atau minta tabel...`
+                      : isLocalMode
+                        ? 'Ekstrak dokumen, link web, atau chat...'
+                        : 'Tanya isi dokumen, tempel link web, atau masukkan chat...'
                   }
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
@@ -1005,7 +1071,11 @@ function App() {
                     <span className="clean-result-info">
                       {resultData.docName ? (
                         <>
-                          Sumber: <strong>{resultData.docName}</strong> •{' '}
+                          Sumber:{' '}
+                          <strong title={resultData.docName}>
+                            {truncateFileName(resultData.docName)}
+                          </strong>{' '}
+                          •{' '}
                         </>
                       ) : null}
                       {resultData.timestamp}
@@ -1039,31 +1109,37 @@ function App() {
 
                     <button
                       type="button"
-                      className="clean-action-btn"
+                      className="clean-action-btn icon-only"
                       onClick={handleCopyResult}
+                      title={copiedToast ? 'Disalin' : 'Salin'}
+                      aria-label={copiedToast ? 'Disalin' : 'Salin'}
                     >
-                      {copiedToast ? 'Disalin' : 'Salin'}
+                      {copiedToast ? <IconCheck size={14} /> : <IconCopy size={14} />}
                     </button>
                     <button
                       type="button"
-                      className="clean-action-btn primary"
+                      className="clean-action-btn primary icon-only"
                       onClick={handleDownloadResult}
+                      title="Unduh"
+                      aria-label="Unduh"
                     >
-                      <span>Unduh</span>
-                      <IconArrowUpRight size={13} />
+                      <IconDownload size={14} />
                     </button>
                     <button
                       type="button"
                       className="clean-close-result"
                       onClick={() => setResultData(null)}
                       title="Tutup"
+                      aria-label="Tutup"
                     >
                       <IconClose size={13} />
                     </button>
                   </div>
                 </div>
 
-                <p className="clean-result-summary">{resultData.summary}</p>
+                <p className="clean-result-summary">
+                  {formatUiText(resultData.summary)}
+                </p>
                 {resultData.aiProvider && (
                   <p className="ai-result-note is-ai">
                     <IconSparkle size={11} />
@@ -1079,22 +1155,60 @@ function App() {
                   </p>
                 )}
 
+                {/* AJAKAN HUBUNGKAN AI: Mode Instan hanya mencocokkan kata kunci */}
+                {resultData.engine === 'local' && !resultData.aiProvider && !resultData.aiError && (
+                  <div className={`ai-upgrade-card ${resultData.isQuestion ? 'is-question' : ''}`} role="note">
+                    <span className="ai-upgrade-icon">
+                      <IconSparkle size={15} />
+                    </span>
+                    <div className="ai-upgrade-text">
+                      <strong>
+                        {resultData.isQuestion
+                          ? 'Mau jawaban yang lebih akurat & nyambung?'
+                          : 'Mode Instan: jago ekstrak tabel, angka & tanggal'}
+                      </strong>
+                      <span>
+                        {resultData.isQuestion
+                          ? 'Mode Instan hanya mencocokkan kata kunci, jadi jawaban bisa kurang tepat. Hubungkan Model AI agar pertanyaanmu benar-benar dipahami.'
+                          : 'Untuk tanya-jawab isi dokumen yang butuh pemahaman (kontrak, laporan, aturan), hubungkan AI agar jawabannya lebih akurat.'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      id="open-ai-settings-from-result"
+                      className="ai-upgrade-btn"
+                      onClick={() => setConfigModalOpen(true)}
+                    >
+                      <IconSettings size={13} />
+                      <span>Hubungkan AI</span>
+                    </button>
+                  </div>
+                )}
+
                 {/* JAWABAN PINTAR & KUTIPAN BUKTI DOKUMEN TERVERIFIKASI */}
                 {(resultData.answer || (resultData.verifiedQuotes && resultData.verifiedQuotes.length > 0)) && (
                   <div className="verified-answer-card">
                     <div className="vac-head">
                       <span className="vac-badge">
                         <IconShield size={13} />
-                        <span>JAWABAN TERVERIFIKASI</span>
+                        <span>
+                          {resultData.engine === 'local'
+                            ? resultData.isQuestion
+                              ? 'HASIL PENCARIAN KATA KUNCI'
+                              : 'HASIL EKSTRAK DOKUMEN'
+                            : 'JAWABAN TERVERIFIKASI'}
+                        </span>
                       </span>
                       {resultData.docName && (
-                        <span className="vac-source-name">{resultData.docName}</span>
+                        <span className="vac-source-name" title={resultData.docName}>
+                          {truncateFileName(resultData.docName)}
+                        </span>
                       )}
                     </div>
                     {resultData.answer && (
                       <div className="vac-body">
                         {resultData.answer.split('\n').map((line, i) => (
-                          <p key={i}>{line}</p>
+                          <p key={i}>{formatUiText(line)}</p>
                         ))}
                       </div>
                     )}
@@ -1104,8 +1218,12 @@ function App() {
                         <div className="vac-quotes-grid">
                           {resultData.verifiedQuotes.map((q, idx) => (
                             <div key={idx} className="vac-quote-item">
-                              <span className="vac-quote-ref">{q.source}</span>
-                              <p className="vac-quote-text">&ldquo;{q.quote}&rdquo;</p>
+                              <span className="vac-quote-ref" title={q.source}>
+                                {formatUiText(q.source)}
+                              </span>
+                              <p className="vac-quote-text">
+                                &ldquo;{formatUiText(q.quote)}&rdquo;
+                              </p>
                             </div>
                           ))}
                         </div>
@@ -1128,7 +1246,7 @@ function App() {
                         {resultData.rows.map((row, rIdx) => (
                           <tr key={rIdx}>
                             {row.map((cell, cIdx) => (
-                              <td key={cIdx}>{cell}</td>
+                              <td key={cIdx}>{formatUiText(cell)}</td>
                             ))}
                           </tr>
                         ))}
@@ -1155,8 +1273,12 @@ function App() {
                   <IconArrowUpRight size={14} />
                 </span>
               </div>
-              <h3>Tanya &amp; Tabel Dokumen</h3>
-              <p>Upload PDF atau CSV, tanya isinya dan ubah jadi tabel rapi.</p>
+              <h3>{isLocalMode ? 'Ekstrak Data Dokumen' : 'Tanya & Tabel Dokumen'}</h3>
+              <p>
+                {isLocalMode
+                  ? 'Upload PDF atau CSV, tarik tabel, angka & tanggal pentingnya jadi rapi.'
+                  : 'Upload PDF atau CSV, tanya isinya dan ubah jadi tabel rapi.'}
+              </p>
             </button>
 
             <button

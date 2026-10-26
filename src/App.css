@@ -1,6 +1,4 @@
-/* ==========================================================================
-   PITULUNG — CLEAN MINIMALIST UI (WHITE & DEEP MAROON)
-   ========================================================================== */
+
 
 .pitulung-clean-app {
   min-height: 100vh;
@@ -409,10 +407,19 @@
 .active-doc-title-row {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 7px;
   font-size: 0.84rem;
   color: var(--maroon-950);
+  min-width: 0;
+}
+
+.active-doc-filename {
+  display: inline-block;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .active-doc-tag {
@@ -428,13 +435,13 @@
 .active-doc-verified {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  background: rgba(124, 31, 53, 0.1);
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  background: rgba(124, 31, 53, 0.12);
   color: var(--maroon-800);
-  font-size: 0.68rem;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 99px;
+  border-radius: 50%;
 }
 
 .active-doc-questions {
@@ -1057,13 +1064,24 @@
   background: var(--maroon-900);
 }
 
+.clean-action-btn.icon-only {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 8px;
+}
+
 .clean-close-result {
   border: none;
   background: var(--bg-subtle);
   color: var(--text-secondary);
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
 }
 
@@ -1071,6 +1089,8 @@
   margin: 12px 0;
   font-size: 0.88rem;
   color: var(--text-secondary);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* Verified Answer & Source Citations Box */
@@ -1081,6 +1101,7 @@
   background: var(--bg-subtle);
   border: 1.3px solid var(--maroon-border-strong);
   text-align: left;
+  overflow: hidden;
 }
 
 .vac-head {
@@ -1113,6 +1134,10 @@
   border: 1px solid var(--maroon-border);
   padding: 2px 9px;
   border-radius: 99px;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .vac-body p {
@@ -1120,6 +1145,8 @@
   font-size: 0.85rem;
   line-height: 1.55;
   color: var(--text-main);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .vac-body p:last-child {
@@ -1152,6 +1179,8 @@
   border-left: 3px solid var(--maroon-700);
   border-radius: 9px;
   padding: 8px 10px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .vac-quote-ref {
@@ -1160,6 +1189,9 @@
   font-weight: 700;
   color: var(--maroon-800);
   margin-bottom: 3px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .vac-quote-text {
@@ -1168,6 +1200,8 @@
   line-height: 1.45;
   color: var(--text-secondary);
   font-style: italic;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .clean-table-wrapper {
@@ -1195,6 +1229,8 @@
   padding: 10px 14px;
   border-bottom: 1px solid #f4eff0;
   color: var(--text-main);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .clean-data-table tr:last-child td {
@@ -2465,6 +2501,101 @@
   border-radius: 10px;
   background: #fff6e5;
   color: #8a5a00;
+}
+
+/* Ajakan hubungkan AI (Mode Instan) */
+.ai-upgrade-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--maroon-700) 6%, #ffffff) 0%,
+    color-mix(in srgb, var(--maroon-700) 11%, #ffffff) 100%
+  );
+  border: 1px dashed var(--maroon-border-strong);
+  text-align: left;
+  animation: aiUpgradeIn 0.35s ease both;
+}
+
+.ai-upgrade-card.is-question {
+  border-style: solid;
+  box-shadow: 0 6px 18px -10px color-mix(in srgb, var(--maroon-700) 55%, transparent);
+}
+
+.ai-upgrade-icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--maroon-800);
+  color: #ffffff;
+}
+
+.ai-upgrade-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.ai-upgrade-text strong {
+  font-size: 0.84rem;
+  color: var(--maroon-900);
+}
+
+.ai-upgrade-text span {
+  font-size: 0.77rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.ai-upgrade-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--maroon-700) 0%, var(--maroon-950) 100%);
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.ai-upgrade-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px -6px color-mix(in srgb, var(--maroon-700) 70%, transparent);
+}
+
+@keyframes aiUpgradeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 640px) {
+  .ai-upgrade-card {
+    flex-wrap: wrap;
+  }
+  .ai-upgrade-btn {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 .clean-modal-qris-frame {

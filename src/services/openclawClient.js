@@ -430,7 +430,22 @@ function parseDelimitedLine(line, delimiter = ',') {
 }
 
 /**
- * Engine Lokal: Tanya Jawab & Ekstraksi Dokumen Terverifikasi (RAG & Structured Parser)
+ * Deteksi apakah input pengguna berupa pertanyaan bahasa alami (butuh pemahaman AI)
+ * atau sekadar instruksi ekstraksi (bisa ditangani parser lokal dengan akurat).
+ */
+export function isNaturalQuestion(query = '') {
+  const q = String(query).trim().toLowerCase()
+  if (!q) return false
+  if (/^(ekstrak|ambil|tampilkan|tarik|buat|ubah|rekap|jadikan)\b/.test(q)) return false
+  return (
+    q.includes('?') ||
+    /\b(apa|apakah|berapa|siapa|kapan|bagaimana|gimana|kenapa|mengapa|jelaskan|bisakah|dimana|di mana)\b/.test(q)
+  )
+}
+
+/**
+ * Engine Lokal (Mode Instan): Ekstraksi Dokumen & Pencarian Kata Kunci (Structured Parser)
+ * Catatan: mode ini TIDAK memahami pertanyaan seperti AI — hanya mencocokkan kata kunci.
  */
 function analyzeVerifiedDocumentLocally(doc, userQuery = '', format = '') {
   const docName = doc.name || 'Dokumen'
@@ -491,9 +506,9 @@ function analyzeVerifiedDocumentLocally(doc, userQuery = '', format = '') {
     }))
 
     return {
-      summary: `Beres! Mengekstrak ${finalRows.length} baris data terverifikasi dari dokumen tabel "${docName}".`,
+      summary: `Beres! Mengekstrak ${finalRows.length} baris data dari dokumen tabel "${docName}".`,
       answer: query
-        ? `Berdasarkan verifikasi pada dokumen "${docName}" (${allRows.length} total baris data), ditemukan ${matchedRows.length} baris yang relevan dengan pertanyaan "${query}". Seluruh nilai dikutip langsung dari baris asli dokumen.`
+        ? `Dari ${allRows.length} baris di "${docName}", ada ${matchedRows.length} baris yang mengandung kata kunci dari "${query}". Semua nilai disalin langsung dari baris asli dokumen.`
         : `Berhasil memuat dan memverifikasi struktur tabel dari "${docName}" dengan ${headers.length} kolom (${headers.join(', ')}) dan ${allRows.length} baris data.`,
       verifiedQuotes,
       columns: finalColumns,
@@ -596,7 +611,9 @@ function analyzeVerifiedDocumentLocally(doc, userQuery = '', format = '') {
   const synthesizedAnswer =
     topEvidence.length > 0
       ? [
-          `Berdasarkan verifikasi isi dokumen "${docName}":`,
+          queryKeywords.length > 0
+            ? `Bagian "${docName}" yang paling cocok dengan kata kunci kamu:`
+            : `Poin penting yang ditemukan di "${docName}":`,
           ...topEvidence.map(
             (ev, i) => `${i + 1}. [${ev.section} — Baris #${ev.lineNo}]: ${ev.text}`
           ),
@@ -663,13 +680,13 @@ function analyzeVerifiedDocumentLocally(doc, userQuery = '', format = '') {
   })
 
   return {
-    summary: `Beres! Menemukan ${rows.length} temuan & data terverifikasi dari dokumen "${docName}".`,
+    summary: `Beres! Mengekstrak ${rows.length} baris teks, angka, dan tanggal penting dari dokumen "${docName}".`,
     answer: synthesizedAnswer,
     verifiedQuotes,
     columns: [
       'Bagian / Pasal',
       'Topik / Klausul',
-      'Isi & Fakta Terverifikasi',
+      'Isi Teks Asli',
       'Angka / Tanggal Kunci',
       'Bukti Sumber',
     ],
@@ -1003,6 +1020,8 @@ export async function processPitulungTask({
     return {
       ...localDocRes,
       docName: document.name,
+      engine: 'local',
+      isQuestion: isNaturalQuestion(cleanInput),
       aiError,
       quotaStatus,
     }
@@ -1055,7 +1074,14 @@ export async function processPitulungTask({
       }
     }
     const sampleRes = analyzeVerifiedDocumentLocally(SAMPLE_VERIFIED_DOC, cleanInput, format || '')
-    return { ...sampleRes, docName: SAMPLE_VERIFIED_DOC.name, aiError, quotaStatus }
+    return {
+      ...sampleRes,
+      docName: SAMPLE_VERIFIED_DOC.name,
+      engine: 'local',
+      isQuestion: isNaturalQuestion(cleanInput),
+      aiError,
+      quotaStatus,
+    }
   }
 
   // 4. TEKS / MULTI-ORDER WA / DOKUMEN TEMPEL: PAKAI AI JIKA DIPILIH
