@@ -1,4 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  useNavigate,
+  useLocation,
+} from 'react-router-dom'
 import logoImage from './assets/Logo_image.png'
 import logoText from './assets/Logo-text.svg'
 import {
@@ -19,252 +26,30 @@ import {
   createQRISDataUrl,
   formatRupiah,
 } from './utils/qris'
+import {
+  IconArrowUpRight,
+  IconArrowRight,
+  IconCilok,
+  IconSparkle,
+  IconShield,
+  IconTable,
+  IconMessage,
+  IconCheck,
+  IconEdit,
+  IconSettings,
+  IconClose,
+  IconFileText,
+  IconUpload,
+  IconCopy,
+  IconDownload,
+  IconMergePdf,
+  IconSplitPdf,
+  IconChevronDown,
+} from './components/Icons'
+import { truncateFileName } from './utils/pdfTools'
+import MergePdfPage from './pages/MergePdfPage'
+import SplitPdfPage from './pages/SplitPdfPage'
 import './App.css'
-
-/* Minimalist Stroke SVG Icons (No Emojis) */
-function IconArrowUpRight({ size = 15 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M7 17L17 7M17 7H8M17 7V16"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function IconArrowRight({ size = 18 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M5 12H19M19 12L13 6M19 12L13 18"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function IconCilok({ size = 16 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M3.5 20.5L8 16M20 4L21.2 2.8"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <circle cx="9.5" cy="14.5" r="2.7" stroke="currentColor" strokeWidth="1.9" />
-      <circle cx="13.5" cy="10.5" r="2.7" stroke="currentColor" strokeWidth="1.9" />
-      <circle cx="17.5" cy="6.5" r="2.7" stroke="currentColor" strokeWidth="1.9" />
-    </svg>
-  )
-}
-
-function IconSparkle({ size = 13 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M12 3L14.2 9.8L21 12L14.2 14.2L12 21L9.8 14.2L3 12L9.8 9.8L12 3Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function IconShield({ size = 15 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M12 22C12 22 20 18 20 12V5L12 2L4 5V12C4 18 12 22 12 22Z"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M9 12L11 14L15 10"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function IconTable({ size = 14 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.9" />
-      <path d="M3 10H21M9 10V20" stroke="currentColor" strokeWidth="1.9" />
-    </svg>
-  )
-}
-
-function IconMessage({ size = 14 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M21 11.5C21 16.1944 16.9706 20 12 20C10.5869 20 9.24964 19.6916 8.06046 19.1422L3 20.5L4.46212 16.0389C3.53766 14.7259 3 13.1695 3 11.5C3 6.80558 7.02944 3 12 3C16.9706 3 21 6.80558 21 11.5Z"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function IconCheck({ size = 14 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M20 6L9 17L4 12"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function IconEdit({ size = 13 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M18.5 2.50001C18.8978 2.10219 19.4374 1.87869 20 1.87869C20.5626 1.87869 21.1022 2.10219 21.5 2.50001C21.8978 2.89784 22.1213 3.4374 22.1213 4.00001C22.1213 4.56263 21.8978 5.10219 21.5 5.50001L12 15L8 16L9 12L18.5 2.50001Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function IconSettings({ size = 14 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.9" />
-      <path
-        d="M19.4 15A1.65 1.65 0 0 0 19.73 16.82L19.79 16.88A2 2 0 0 1 16.96 19.71L16.9 19.65A1.65 1.65 0 0 0 15.08 19.32A1.65 1.65 0 0 0 14 20.85V21A2 2 0 0 1 10 21V20.91A1.65 1.65 0 0 0 8.92 19.38A1.65 1.65 0 0 0 7.1 19.71L7.04 19.77A2 2 0 0 1 4.21 16.94L4.27 16.88A1.65 1.65 0 0 0 4.6 15.06A1.65 1.65 0 0 0 3.07 14H3A2 2 0 0 1 3 10H3.09A1.65 1.65 0 0 0 4.62 8.92A1.65 1.65 0 0 0 4.29 7.1L4.23 7.04A2 2 0 0 1 7.06 4.21L7.12 4.27A1.65 1.65 0 0 0 8.94 4.6H9A1.65 1.65 0 0 0 10 3.09V3A2 2 0 0 1 14 3V3.09A1.65 1.65 0 0 0 15 4.6A1.65 1.65 0 0 0 16.82 4.27L16.88 4.21A2 2 0 0 1 19.71 7.04L19.65 7.1A1.65 1.65 0 0 0 19.32 8.92V9A1.65 1.65 0 0 0 20.85 10H21A2 2 0 0 1 21 14H20.91A1.65 1.65 0 0 0 19.4 15Z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function IconClose({ size = 14 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M18 6L6 18M6 6L18 18"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  )
-}
-
-function IconFileText({ size = 15 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path d="M14 2V8H20M8 13H16M8 17H13" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
-    </svg>
-  )
-}
-
-function IconUpload({ size = 14 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15M17 8L12 3M12 3L7 8M12 3V15"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function IconCopy({ size = 14 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect
-        x="9"
-        y="9"
-        width="13"
-        height="13"
-        rx="2"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M5 15H4C2.89543 15 2 14.1046 2 13V4C2 2.89543 2.89543 2 4 2H13C14.1046 2 15 2.89543 15 4V5"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function IconDownload({ size = 14 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15M7 10L12 15M12 15L17 10M12 15V3"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function truncateFileName(name = '', maxLen = 24) {
-  const clean = String(name || '').trim()
-  if (clean.length <= maxLen) return clean
-  const dotIdx = clean.lastIndexOf('.')
-  if (dotIdx > 0 && clean.length - dotIdx <= 6) {
-    const ext = clean.slice(dotIdx)
-    const keep = Math.max(8, maxLen - ext.length - 3)
-    return `${clean.slice(0, keep)}...${ext}`
-  }
-  return `${clean.slice(0, maxLen)}...`
-}
 
 function formatUiText(text = '') {
   // Pendekkan hanya nama file / kata tunggal tanpa spasi yang terlalu panjang agar tidak menabrak dinding kartu,
@@ -293,6 +78,30 @@ const FORMAT_OPTIONS = [
   { value: 'Ekstrak Tabel Data (.csv / Excel)', label: 'Tabel Excel (.csv)', note: 'Spreadsheet' },
   { value: 'Ringkasan & Poin Kunci', label: 'Ringkasan Poin', note: 'Intisari' },
   { value: 'JSON Terstruktur', label: 'Format JSON', note: 'Data API' },
+]
+
+const NAV_TOOL_ROUTES = [
+  {
+    path: '/',
+    label: 'Tanya & Ekstrak Data',
+    shortDesc: 'Tanya PDF, Link Web & Rekap WA',
+    badge: 'UTAMA',
+    icon: IconFileText,
+  },
+  {
+    path: '/merge-pdf',
+    label: 'Gabung PDF (Merge)',
+    shortDesc: 'Satukan beberapa PDF jadi satu',
+    badge: 'PDF',
+    icon: IconMergePdf,
+  },
+  {
+    path: '/split-pdf',
+    label: 'Pisah PDF (Split)',
+    shortDesc: 'Ambil halaman atau pecah file PDF',
+    badge: 'PDF',
+    icon: IconSplitPdf,
+  },
 ]
 
 function CleanDropdown({
@@ -377,15 +186,7 @@ function CleanDropdown({
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         <span className="clean-dropdown-caret" aria-hidden="true">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M6 9L12 15L18 9"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <IconChevronDown size={14} />
         </span>
       </button>
 
@@ -422,7 +223,10 @@ function CleanDropdown({
   )
 }
 
-function App() {
+function PitulungAppShell() {
+  const navigate = useNavigate()
+  const location = useLocation()
+
   const [activeToolId, setActiveToolId] = useState('dokumen')
   const [inputValue, setInputValue] = useState('')
   const [selectedFormat, setSelectedFormat] = useState('')
@@ -440,7 +244,6 @@ function App() {
   const [apiConfig, setApiConfig] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('pitulung_engine_config') || '{}')
-      // Bersihkan field lama yang tidak aman / tidak dipakai lagi
       delete saved.apiKey
       delete saved.mode
       const sessionKey = sessionStorage.getItem('pitulung_user_api_key') || ''
@@ -459,10 +262,32 @@ function App() {
   const [customCilokInput, setCustomCilokInput] = useState('')
   const [qrisDataUrl, setQrisDataUrl] = useState('')
   const [isScrolled, setIsScrolled] = useState(false)
+  const [navMenuOpen, setNavMenuOpen] = useState(false)
 
   const inputRef = useRef(null)
   const fileInputRef = useRef(null)
   const resultRef = useRef(null)
+  const navMenuRef = useRef(null)
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [location.pathname])
+
+  useEffect(() => {
+    function handleOutsideNavClick(e) {
+      if (navMenuRef.current && !navMenuRef.current.contains(e.target)) {
+        setNavMenuOpen(false)
+      }
+    }
+    if (navMenuOpen) {
+      document.addEventListener('mousedown', handleOutsideNavClick)
+      document.addEventListener('touchstart', handleOutsideNavClick)
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideNavClick)
+      document.removeEventListener('touchstart', handleOutsideNavClick)
+    }
+  }, [navMenuOpen])
 
   useEffect(() => {
     let active = true
@@ -549,6 +374,9 @@ function App() {
   }
 
   const handleQuickDemo = (toolId) => {
+    if (location.pathname !== '/') {
+      navigate('/')
+    }
     const preset = PITULUNG_TOOLS.find((t) => t.id === toolId) || PITULUNG_TOOLS[0]
     setActiveToolId(preset.id)
     setInputValue(preset.sampleInput)
@@ -666,7 +494,6 @@ function App() {
   const handleSaveApiConfig = async (e) => {
     e.preventDefault()
     const { apiKey, ...safeConfig } = apiConfig
-    // Pengaturan umum boleh diingat, tapi API key TIDAK disimpan permanen
     localStorage.setItem('pitulung_engine_config', JSON.stringify(safeConfig))
     if (apiKey) sessionStorage.setItem('pitulung_user_api_key', apiKey)
     else sessionStorage.removeItem('pitulung_user_api_key')
@@ -745,6 +572,527 @@ function App() {
     note: m.note || '',
   }))
 
+  const homeExtractionPage = (
+    <section className="clean-hero-section">
+      <div className="hero-top-meta">
+        <span className="meta-pill-badge">
+          <IconSparkle size={12} />
+          <span>BERES DALAM HITUNGAN DETIK</span>
+        </span>
+      </div>
+
+      <h1 className="editorial-hero-title">
+        Mau dibantu{' '}
+        <span className="inline-arrow-pill">
+          <IconArrowRight size={28} />
+        </span>{' '}
+        apa
+        <br />
+        hari ini?
+      </h1>
+
+      <p className="editorial-hero-subtitle">
+        Alat bantu digital gratis, biar kerjaanmu cepet beres.
+      </p>
+
+      {/* CENTRAL INPUT CARD */}
+      <div
+        className={`clean-workspace-card ${isDraggingFile ? 'is-dragging' : ''}`}
+        onDragOver={(e) => {
+          e.preventDefault()
+          setIsDraggingFile(true)
+        }}
+        onDragLeave={() => setIsDraggingFile(false)}
+        onDrop={(e) => {
+          e.preventDefault()
+          setIsDraggingFile(false)
+          const droppedFile = e.dataTransfer?.files?.[0]
+          if (droppedFile) handleFileUpload(droppedFile)
+        }}
+      >
+        {/* DOCUMENT UPLOAD & VERIFIED SOURCE BAR */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.csv,.tsv,.txt,.md,.json,.html,.htm,.xml,.log,.png,.jpg,.jpeg,.webp"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) handleFileUpload(f)
+            e.target.value = ''
+          }}
+        />
+
+        <div className="workspace-doc-bar">
+          {uploadedDoc ? (
+            <div className="active-doc-banner">
+              <div className="active-doc-info">
+                <span className="active-doc-icon">
+                  <IconFileText size={16} />
+                </span>
+                <div className="active-doc-text">
+                  <div className="active-doc-title-row">
+                    <strong className="active-doc-filename" title={uploadedDoc.name}>
+                      {truncateFileName(uploadedDoc.name)}
+                    </strong>
+                    <span
+                      className="active-doc-verified"
+                      title={isLocalMode ? 'Siap Diekstrak' : 'Terverifikasi'}
+                      aria-label={isLocalMode ? 'Siap Diekstrak' : 'Terverifikasi'}
+                    >
+                      <IconCheck size={12} />
+                    </span>
+                  </div>
+                  <div className="active-doc-questions">
+                    <span>{isLocalMode ? 'Ekstrak cepat:' : 'Tanya cepat:'}</span>
+                    {DOC_QUICK_QUESTIONS.map((q) => (
+                      <button
+                        key={q.label}
+                        type="button"
+                        className="doc-quick-chip"
+                        onClick={() => {
+                          setInputValue(q.query)
+                          setSelectedFormat(q.format)
+                          executeTask('dokumen', q.query, q.format, uploadedDoc)
+                        }}
+                      >
+                        {q.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="active-doc-actions">
+                <button
+                  type="button"
+                  className="doc-action-btn"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <IconUpload size={13} />
+                  <span>Ganti</span>
+                </button>
+                <button
+                  type="button"
+                  className="doc-remove-btn"
+                  onClick={() => {
+                    setUploadedDoc(null)
+                    setResultData(null)
+                  }}
+                  title="Hapus dokumen"
+                >
+                  <IconClose size={12} />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="empty-doc-strip">
+              <div className="empty-doc-left">
+                <button
+                  type="button"
+                  className="upload-doc-trigger-btn"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <IconUpload size={14} />
+                  <span>Upload Dokumen</span>
+                </button>
+                <button
+                  type="button"
+                  className="sample-doc-trigger-btn"
+                  onClick={handleLoadSampleDoc}
+                >
+                  <IconFileText size={13} />
+                  <span>Contoh Dokumen</span>
+                </button>
+              </div>
+              <span className="empty-doc-hint">
+                Format: PDF, CSV, TXT, JSON, Nota
+              </span>
+            </div>
+          )}
+        </div>
+
+        <form
+          className="workspace-form-row"
+          onSubmit={(e) => {
+            e.preventDefault()
+            executeTask()
+          }}
+        >
+          <div className="clean-input-box">
+            <input
+              ref={inputRef}
+              type="text"
+              className="clean-text-input"
+              placeholder={
+                uploadedDoc
+                  ? isLocalMode
+                    ? `Ketik kata kunci untuk diekstrak dari "${truncateFileName(uploadedDoc.name, 20)}" (mis. harga, tanggal, denda)...`
+                    : `Tanyakan isi "${truncateFileName(uploadedDoc.name, 20)}" atau minta tabel...`
+                  : isLocalMode
+                    ? 'Ekstrak dokumen, link web, atau chat...'
+                    : 'Tanya isi dokumen, tempel link web, atau masukkan chat...'
+              }
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              aria-label="Masukkan pertanyaan dokumen, link web, atau teks di sini"
+            />
+            {inputValue && (
+              <button
+                type="button"
+                className="clean-clear-btn"
+                onClick={() => {
+                  setInputValue('')
+                  setResultData(null)
+                  setErrorMsg('')
+                  inputRef.current?.focus()
+                }}
+                title="Bersihkan input"
+              >
+                <IconClose size={12} />
+              </button>
+            )}
+          </div>
+
+          <CleanDropdown
+            id="format-selector"
+            value={selectedFormat}
+            onChange={(val) => setSelectedFormat(val)}
+            options={FORMAT_OPTIONS}
+            placeholder="Pilih Output"
+            size="large"
+            ariaLabel="Pilih Output"
+          />
+
+          <button
+            type="submit"
+            className="clean-submit-btn"
+            disabled={isProcessing}
+          >
+            <span>
+              {isProcessing ? 'Memproses...' : 'Proses Sekarang'}
+            </span>
+            <span className="submit-arrow-circle">
+              <IconArrowUpRight size={16} />
+            </span>
+          </button>
+        </form>
+
+        <div className="workspace-footer-bar">
+          {(quotaStatus === 'warning' || quotaStatus === 'exhausted') && (
+            <div
+              className={`quota-status-indicator ${
+                quotaStatus === 'exhausted' ? 'is-exhausted' : 'is-warning'
+              }`}
+              role="status"
+            >
+              <span className="quota-shield-icon">
+                <IconShield size={15} />
+              </span>
+              <span>
+                Sisa kuota publik:{' '}
+                <strong>{quotaStatus === 'exhausted' ? 'Habis' : 'Hampir Habis'}</strong>
+              </span>
+            </div>
+          )}
+
+          <div className="preset-pills-group">
+            <span className="preset-caption">Coba cepat:</span>
+            <button
+              type="button"
+              className="clean-preset-btn"
+              onClick={() => handleQuickDemo('dokumen')}
+            >
+              <IconFileText size={13} />
+              <span>Tanya Dokumen</span>
+            </button>
+            <button
+              type="button"
+              className="clean-preset-btn"
+              onClick={() => handleQuickDemo('toko')}
+            >
+              <IconTable size={13} />
+              <span>Link Jadi Tabel</span>
+            </button>
+            <button
+              type="button"
+              className="clean-preset-btn"
+              onClick={() => handleQuickDemo('teks')}
+            >
+              <IconMessage size={13} />
+              <span>Rekap Order WA</span>
+            </button>
+          </div>
+        </div>
+
+        {errorMsg && (
+          <div className="clean-error-banner" role="alert">
+            {errorMsg}
+          </div>
+        )}
+
+        {isProcessing && (
+          <div className="clean-loading-bar" role="status">
+            <div className="clean-loader-pulse" />
+            <span>{processStep}</span>
+          </div>
+        )}
+
+        {/* INSTANT RESULT PREVIEW */}
+        {resultData && !isProcessing && (
+          <div className="clean-result-container" ref={resultRef}>
+            <div className="clean-result-header">
+              <div className="clean-result-meta">
+                <span className="clean-badge-done">
+                  <IconCheck size={13} />
+                  <span>Selesai &amp; Siap Pakai</span>
+                </span>
+                <span className="clean-result-info">
+                  {resultData.docName ? (
+                    <>
+                      Sumber:{' '}
+                      <strong title={resultData.docName}>
+                        {truncateFileName(resultData.docName)}
+                      </strong>{' '}
+                      •{' '}
+                    </>
+                  ) : null}
+                  {resultData.timestamp}
+                </span>
+              </div>
+
+              <div className="clean-result-controls">
+                <div className="clean-segmented-tabs">
+                  <button
+                    type="button"
+                    className={`seg-tab ${activeResultTab === 'table' ? 'active' : ''}`}
+                    onClick={() => setActiveResultTab('table')}
+                  >
+                    Tabel
+                  </button>
+                  <button
+                    type="button"
+                    className={`seg-tab ${activeResultTab === 'csv' ? 'active' : ''}`}
+                    onClick={() => setActiveResultTab('csv')}
+                  >
+                    Excel/CSV
+                  </button>
+                  <button
+                    type="button"
+                    className={`seg-tab ${activeResultTab === 'json' ? 'active' : ''}`}
+                    onClick={() => setActiveResultTab('json')}
+                  >
+                    JSON
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  className="clean-action-btn icon-only"
+                  onClick={handleCopyResult}
+                  title={copiedToast ? 'Disalin' : 'Salin'}
+                  aria-label={copiedToast ? 'Disalin' : 'Salin'}
+                >
+                  {copiedToast ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                </button>
+                <button
+                  type="button"
+                  className="clean-action-btn primary icon-only"
+                  onClick={handleDownloadResult}
+                  title="Unduh"
+                  aria-label="Unduh"
+                >
+                  <IconDownload size={14} />
+                </button>
+                <button
+                  type="button"
+                  className="clean-close-result"
+                  onClick={() => setResultData(null)}
+                  title="Tutup"
+                  aria-label="Tutup"
+                >
+                  <IconClose size={13} />
+                </button>
+              </div>
+            </div>
+
+            <p className="clean-result-summary">
+              {formatUiText(resultData.summary)}
+            </p>
+            {resultData.aiProvider && (
+              <p className="ai-result-note is-ai">
+                <IconSparkle size={11} />
+                <span>
+                  Diproses oleh {resultData.aiProvider}
+                  {resultData.aiModel ? ` (${resultData.aiModel})` : ''}
+                </span>
+              </p>
+            )}
+            {resultData.aiError && (
+              <p className="ai-result-note is-fallback">
+                AI eksternal belum terhubung ({resultData.aiError}). Hasil diekstrak oleh Engine Lokal.
+              </p>
+            )}
+
+            {/* AJAKAN HUBUNGKAN AI: Mode Instan hanya mencocokkan kata kunci */}
+            {resultData.engine === 'local' && !resultData.aiProvider && !resultData.aiError && (
+              <div className={`ai-upgrade-card ${resultData.isQuestion ? 'is-question' : ''}`} role="note">
+                <span className="ai-upgrade-icon">
+                  <IconSparkle size={15} />
+                </span>
+                <div className="ai-upgrade-text">
+                  <strong>
+                    {resultData.isQuestion
+                      ? 'Mau jawaban yang lebih akurat & nyambung?'
+                      : 'Mode Instan: jago ekstrak tabel, angka & tanggal'}
+                  </strong>
+                  <span>
+                    {resultData.isQuestion
+                      ? 'Mode Instan hanya mencocokkan kata kunci, jadi jawaban bisa kurang tepat. Hubungkan Model AI agar pertanyaanmu benar-benar dipahami.'
+                      : 'Untuk tanya-jawab isi dokumen yang butuh pemahaman (kontrak, laporan, aturan), hubungkan AI agar jawabannya lebih akurat.'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  id="open-ai-settings-from-result"
+                  className="ai-upgrade-btn"
+                  onClick={() => setConfigModalOpen(true)}
+                >
+                  <IconSettings size={13} />
+                  <span>Hubungkan AI</span>
+                </button>
+              </div>
+            )}
+
+            {/* JAWABAN PINTAR & KUTIPAN BUKTI DOKUMEN TERVERIFIKASI */}
+            {(resultData.answer || (resultData.verifiedQuotes && resultData.verifiedQuotes.length > 0)) && (
+              <div className="verified-answer-card">
+                <div className="vac-head">
+                  <span className="vac-badge">
+                    <IconShield size={13} />
+                    <span>
+                      {resultData.engine === 'local'
+                        ? resultData.isQuestion
+                          ? 'HASIL PENCARIAN KATA KUNCI'
+                          : 'HASIL EKSTRAK DOKUMEN'
+                        : 'JAWABAN TERVERIFIKASI'}
+                    </span>
+                  </span>
+                  {resultData.docName && (
+                    <span className="vac-source-name" title={resultData.docName}>
+                      {truncateFileName(resultData.docName)}
+                    </span>
+                  )}
+                </div>
+                {resultData.answer && (
+                  <div className="vac-body">
+                    {resultData.answer.split('\n').map((line, i) => (
+                      <p key={i}>{formatUiText(line)}</p>
+                    ))}
+                  </div>
+                )}
+                {resultData.verifiedQuotes && resultData.verifiedQuotes.length > 0 && (
+                  <div className="vac-quotes">
+                    <span className="vac-quotes-title">Kutipan Sumber:</span>
+                    <div className="vac-quotes-grid">
+                      {resultData.verifiedQuotes.map((q, idx) => (
+                        <div key={idx} className="vac-quote-item">
+                          <span className="vac-quote-ref" title={q.source}>
+                            {formatUiText(q.source)}
+                          </span>
+                          <p className="vac-quote-text">
+                            &ldquo;{formatUiText(q.quote)}&rdquo;
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeResultTab === 'table' ? (
+              <div className="clean-table-wrapper">
+                <table className="clean-data-table">
+                  <thead>
+                    <tr>
+                      {resultData.columns.map((col) => (
+                        <th key={col}>{col}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {resultData.rows.map((row, rIdx) => (
+                      <tr key={rIdx}>
+                        {row.map((cell, cIdx) => (
+                          <td key={cIdx}>{formatUiText(cell)}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <pre className="clean-code-preview">{formatResultAsText()}</pre>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* THREE FEATURE CARDS ROW BELOW INPUT */}
+      <div className="quick-features-grid">
+        <button
+          type="button"
+          className="quick-feature-card"
+          onClick={() => handleQuickDemo('dokumen')}
+        >
+          <div className="qf-top">
+            <span className="qf-number">DOKUMEN PINTAR</span>
+            <span className="qf-arrow">
+              <IconArrowUpRight size={14} />
+            </span>
+          </div>
+          <h3>{isLocalMode ? 'Ekstrak Data Dokumen' : 'Tanya & Tabel Dokumen'}</h3>
+          <p>
+            {isLocalMode
+              ? 'Upload PDF atau CSV, tarik tabel, angka & tanggal pentingnya jadi rapi.'
+              : 'Upload PDF atau CSV, tanya isinya dan ubah jadi tabel rapi.'}
+          </p>
+        </button>
+
+        <button
+          type="button"
+          className="quick-feature-card"
+          onClick={() => navigate('/merge-pdf')}
+        >
+          <div className="qf-top">
+            <span className="qf-number">GABUNG PDF</span>
+            <span className="qf-arrow">
+              <IconArrowUpRight size={14} />
+            </span>
+          </div>
+          <h3>Gabung Dokumen PDF</h3>
+          <p>Susun urutan beberapa berkas PDF dan satukan jadi satu dokumen rapi langsung di browser.</p>
+        </button>
+
+        <button
+          type="button"
+          className="quick-feature-card"
+          onClick={() => navigate('/split-pdf')}
+        >
+          <div className="qf-top">
+            <span className="qf-number">PISAH PDF</span>
+            <span className="qf-arrow">
+              <IconArrowUpRight size={14} />
+            </span>
+          </div>
+          <h3>Pisahkan Halaman PDF</h3>
+          <p>Ambil rentang halaman tertentu atau pecah setiap halaman menjadi file PDF terpisah.</p>
+        </button>
+      </div>
+    </section>
+  )
+
   return (
     <div className="pitulung-clean-app">
       <div className="ambient-glow-top" aria-hidden="true" />
@@ -757,6 +1105,9 @@ function App() {
               type="button"
               className="clean-brand-identity"
               onClick={() => {
+                if (location.pathname !== '/') {
+                  navigate('/')
+                }
                 window.scrollTo({ top: 0, behavior: 'smooth' })
               }}
               aria-label="Pitulung"
@@ -766,16 +1117,64 @@ function App() {
             </button>
 
             <div className="nav-right-actions">
-              <button
-                type="button"
-                className="clean-nav-link"
-                onClick={() => {
-                  document.getElementById('alat')?.scrollIntoView({ behavior: 'smooth' })
+              {/* DROPDOWN NAVIGASI ALAT BANTU */}
+              <div
+                ref={navMenuRef}
+                className={`nav-tools-dropdown ${navMenuOpen ? 'is-open' : ''}`}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setNavMenuOpen(false)
                 }}
               >
-                <span className="nav-label-full">Alat Bantu</span>
-                <span className="nav-label-short">Alat</span>
-              </button>
+                <button
+                  type="button"
+                  className="clean-nav-link nav-tools-trigger"
+                  onClick={() => setNavMenuOpen((prev) => !prev)}
+                  aria-haspopup="menu"
+                  aria-expanded={navMenuOpen}
+                >
+                  <span className="nav-label-full">Alat Bantu</span>
+                  <span className="nav-label-short">Alat</span>
+                  <span className={`nav-tools-caret ${navMenuOpen ? 'is-open' : ''}`}>
+                    <IconChevronDown size={13} />
+                  </span>
+                </button>
+
+                {navMenuOpen && (
+                  <div className="nav-tools-menu" role="menu" aria-label="Pilih Alat Bantu Pitulung">
+                    <div className="nav-tools-menu-header">
+                      <span>PILIH ALAT BANTU</span>
+                    </div>
+                    {NAV_TOOL_ROUTES.map((item) => {
+                      const IconComp = item.icon
+                      const isActive = location.pathname === item.path
+                      return (
+                        <button
+                          key={item.path}
+                          type="button"
+                          role="menuitem"
+                          className={`nav-tool-menu-item ${isActive ? 'is-active' : ''}`}
+                          onClick={() => {
+                            setNavMenuOpen(false)
+                            navigate(item.path)
+                          }}
+                        >
+                          <span className="ntm-icon">
+                            <IconComp size={15} />
+                          </span>
+                          <span className="ntm-body">
+                            <span className="ntm-title-row">
+                              <strong>{item.label}</strong>
+                              <span className="ntm-badge">{item.badge}</span>
+                            </span>
+                            <small>{item.shortDesc}</small>
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
               <button
                 type="button"
                 className="nav-cta-outline"
@@ -792,669 +1191,187 @@ function App() {
           </header>
         </div>
 
-        {/* HERO SECTION — SIMPLE, PUNCHY, CLICK-WORTHY */}
-        <section className="clean-hero-section">
-          <div className="hero-top-meta">
-            <span className="meta-pill-badge">
-              <IconSparkle size={12} />
-              <span>BERES DALAM HITUNGAN DETIK</span>
-            </span>
-
-          </div>
-
-          <h1 className="editorial-hero-title">
-            Mau dibantu{' '}
-            <span className="inline-arrow-pill"><IconArrowRight size={28} /></span>{' '}
-            apa
-            <br />
-            hari ini?
-          </h1>
-
-          <p className="editorial-hero-subtitle">
-            Alat bantu digital gratis, biar kerjaanmu cepet beres
-            <br />
-
-          </p>
-
-          {/* CENTRAL INPUT CARD */}
-          <div
-            className={`clean-workspace-card ${isDraggingFile ? 'is-dragging' : ''}`}
-            onDragOver={(e) => {
-              e.preventDefault()
-              setIsDraggingFile(true)
-            }}
-            onDragLeave={() => setIsDraggingFile(false)}
-            onDrop={(e) => {
-              e.preventDefault()
-              setIsDraggingFile(false)
-              const droppedFile = e.dataTransfer?.files?.[0]
-              if (droppedFile) handleFileUpload(droppedFile)
-            }}
-          >
-            {/* DOCUMENT UPLOAD & VERIFIED SOURCE BAR */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.csv,.tsv,.txt,.md,.json,.html,.htm,.xml,.log,.png,.jpg,.jpeg,.webp"
-              style={{ display: 'none' }}
-              onChange={(e) => {
-                const f = e.target.files?.[0]
-                if (f) handleFileUpload(f)
-                e.target.value = ''
-              }}
-            />
-
-            <div className="workspace-doc-bar">
-              {uploadedDoc ? (
-                <div className="active-doc-banner">
-                  <div className="active-doc-info">
-                    <span className="active-doc-icon">
-                      <IconFileText size={16} />
-                    </span>
-                    <div className="active-doc-text">
-                      <div className="active-doc-title-row">
-                        <strong className="active-doc-filename" title={uploadedDoc.name}>
-                          {truncateFileName(uploadedDoc.name)}
-                        </strong>
-                        <span
-                          className="active-doc-verified"
-                          title={isLocalMode ? 'Siap Diekstrak' : 'Terverifikasi'}
-                          aria-label={isLocalMode ? 'Siap Diekstrak' : 'Terverifikasi'}
-                        >
-                          <IconCheck size={12} />
-                        </span>
-                      </div>
-                      <div className="active-doc-questions">
-                        <span>{isLocalMode ? 'Ekstrak cepat:' : 'Tanya cepat:'}</span>
-                        {DOC_QUICK_QUESTIONS.map((q) => (
-                          <button
-                            key={q.label}
-                            type="button"
-                            className="doc-quick-chip"
-                            onClick={() => {
-                              setInputValue(q.query)
-                              setSelectedFormat(q.format)
-                              executeTask('dokumen', q.query, q.format, uploadedDoc)
-                            }}
-                          >
-                            {q.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="active-doc-actions">
-                    <button
-                      type="button"
-                      className="doc-action-btn"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <IconUpload size={13} />
-                      <span>Ganti</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="doc-remove-btn"
-                      onClick={() => {
-                        setUploadedDoc(null)
-                        setResultData(null)
-                      }}
-                      title="Hapus dokumen"
-                    >
-                      <IconClose size={12} />
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="empty-doc-strip">
-                  <div className="empty-doc-left">
-                    <button
-                      type="button"
-                      className="upload-doc-trigger-btn"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <IconUpload size={14} />
-                      <span>Upload Dokumen</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="sample-doc-trigger-btn"
-                      onClick={handleLoadSampleDoc}
-                    >
-                      <IconFileText size={13} />
-                      <span>Contoh Dokumen</span>
-                    </button>
-                  </div>
-                  <span className="empty-doc-hint">
-                    Format: PDF, CSV, TXT, JSON, Nota
-                  </span>
-                </div>
-              )}
-            </div>
-
-            <form
-              className="workspace-form-row"
-              onSubmit={(e) => {
-                e.preventDefault()
-                executeTask()
-              }}
-            >
-              <div className="clean-input-box">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  className="clean-text-input"
-                  placeholder={
-                    uploadedDoc
-                      ? isLocalMode
-                        ? `Ketik kata kunci untuk diekstrak dari "${truncateFileName(uploadedDoc.name, 20)}" (mis. harga, tanggal, denda)...`
-                        : `Tanyakan isi "${truncateFileName(uploadedDoc.name, 20)}" atau minta tabel...`
-                      : isLocalMode
-                        ? 'Ekstrak dokumen, link web, atau chat...'
-                        : 'Tanya isi dokumen, tempel link web, atau masukkan chat...'
-                  }
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  aria-label="Masukkan pertanyaan dokumen, link web, atau teks di sini"
-                />
-                {inputValue && (
-                  <button
-                    type="button"
-                    className="clean-clear-btn"
-                    onClick={() => {
-                      setInputValue('')
-                      setResultData(null)
-                      setErrorMsg('')
-                      inputRef.current?.focus()
-                    }}
-                    title="Bersihkan input"
-                  >
-                    <IconClose size={12} />
-                  </button>
-                )}
-              </div>
-
-              <CleanDropdown
-                id="format-selector"
-                value={selectedFormat}
-                onChange={(val) => setSelectedFormat(val)}
-                options={FORMAT_OPTIONS}
-                placeholder="Pilih Output"
-                size="large"
-                ariaLabel="Pilih Output"
-              />
-
-              <button
-                type="submit"
-                className="clean-submit-btn"
-                disabled={isProcessing}
-              >
-                <span>
-                  {isProcessing ? 'Memproses...' : 'Proses Sekarang'}
-                </span>
-                <span className="submit-arrow-circle">
-                  <IconArrowUpRight size={16} />
-                </span>
-              </button>
-            </form>
-
-            <div className="workspace-footer-bar">
-              {(quotaStatus === 'warning' || quotaStatus === 'exhausted') && (
-                <div
-                  className={`quota-status-indicator ${
-                    quotaStatus === 'exhausted' ? 'is-exhausted' : 'is-warning'
-                  }`}
-                  role="status"
-                >
-                  <span className="quota-shield-icon">
-                    <IconShield size={15} />
-                  </span>
-                  <span>
-                    Sisa kuota publik:{' '}
-                    <strong>{quotaStatus === 'exhausted' ? 'Habis' : 'Hampir Habis'}</strong>
-                  </span>
-                </div>
-              )}
-
-              <div className="preset-pills-group">
-                <span className="preset-caption">Coba cepat:</span>
+        {/* ROUTE SWITCHER BAR (PILLS) — HANYA DITAMPILKAN DI HALAMAN UTAMA (/) */}
+        {location.pathname === '/' && (
+          <nav className="tool-route-switcher" aria-label="Navigasi Cepat Alat Pitulung">
+            {NAV_TOOL_ROUTES.map((item) => {
+              const IconComp = item.icon
+              const isActive = location.pathname === item.path
+              return (
                 <button
+                  key={item.path}
                   type="button"
-                  className="clean-preset-btn"
-                  onClick={() => handleQuickDemo('dokumen')}
+                  className={`tool-route-pill ${isActive ? 'is-active' : ''}`}
+                  onClick={() => navigate(item.path)}
+                  aria-current={isActive ? 'page' : undefined}
                 >
-                  <IconFileText size={13} />
-                  <span>Tanya Dokumen</span>
+                  <IconComp size={14} />
+                  <span>{item.label}</span>
                 </button>
-                <button
-                  type="button"
-                  className="clean-preset-btn"
-                  onClick={() => handleQuickDemo('toko')}
-                >
-                  <IconTable size={13} />
-                  <span>Link Jadi Tabel</span>
-                </button>
-                <button
-                  type="button"
-                  className="clean-preset-btn"
-                  onClick={() => handleQuickDemo('teks')}
-                >
-                  <IconMessage size={13} />
-                  <span>Rekap Order WA</span>
-                </button>
+              )
+            })}
+          </nav>
+        )}
+
+        {/* ROUTE VIEWPORTS */}
+        <Routes>
+          <Route path="/" element={homeExtractionPage} />
+          <Route path="/merge-pdf" element={<MergePdfPage />} />
+          <Route path="/split-pdf" element={<SplitPdfPage />} />
+          <Route path="*" element={homeExtractionPage} />
+        </Routes>
+
+        {/* ROUNDED GEOMETRIC CONTAINER: ALAT BANTU FAVORIT (HANYA DI HALAMAN UTAMA) */}
+        {location.pathname === '/' && (
+          <section className="framed-geometric-section" id="alat">
+            <div className="framed-section-header">
+              <div>
+                <span className="section-eyebrow">PRAKTIS &amp; LANGSUNG JADI</span>
+                <h2>Kerjaan Beres Tanpa Ribet</h2>
               </div>
-            </div>
-
-            {errorMsg && (
-              <div className="clean-error-banner" role="alert">
-                {errorMsg}
-              </div>
-            )}
-
-            {isProcessing && (
-              <div className="clean-loading-bar" role="status">
-                <div className="clean-loader-pulse" />
-                <span>{processStep}</span>
-              </div>
-            )}
-
-            {/* INSTANT RESULT PREVIEW */}
-            {resultData && !isProcessing && (
-              <div className="clean-result-container" ref={resultRef}>
-                <div className="clean-result-header">
-                  <div className="clean-result-meta">
-                    <span className="clean-badge-done">
-                      <IconCheck size={13} />
-                      <span>Selesai &amp; Siap Pakai</span>
-                    </span>
-                    <span className="clean-result-info">
-                      {resultData.docName ? (
-                        <>
-                          Sumber:{' '}
-                          <strong title={resultData.docName}>
-                            {truncateFileName(resultData.docName)}
-                          </strong>{' '}
-                          •{' '}
-                        </>
-                      ) : null}
-                      {resultData.timestamp}
-                    </span>
-                  </div>
-
-                  <div className="clean-result-controls">
-                    <div className="clean-segmented-tabs">
-                      <button
-                        type="button"
-                        className={`seg-tab ${activeResultTab === 'table' ? 'active' : ''}`}
-                        onClick={() => setActiveResultTab('table')}
-                      >
-                        Tabel
-                      </button>
-                      <button
-                        type="button"
-                        className={`seg-tab ${activeResultTab === 'csv' ? 'active' : ''}`}
-                        onClick={() => setActiveResultTab('csv')}
-                      >
-                        Excel/CSV
-                      </button>
-                      <button
-                        type="button"
-                        className={`seg-tab ${activeResultTab === 'json' ? 'active' : ''}`}
-                        onClick={() => setActiveResultTab('json')}
-                      >
-                        JSON
-                      </button>
-                    </div>
-
-                    <button
-                      type="button"
-                      className="clean-action-btn icon-only"
-                      onClick={handleCopyResult}
-                      title={copiedToast ? 'Disalin' : 'Salin'}
-                      aria-label={copiedToast ? 'Disalin' : 'Salin'}
-                    >
-                      {copiedToast ? <IconCheck size={14} /> : <IconCopy size={14} />}
-                    </button>
-                    <button
-                      type="button"
-                      className="clean-action-btn primary icon-only"
-                      onClick={handleDownloadResult}
-                      title="Unduh"
-                      aria-label="Unduh"
-                    >
-                      <IconDownload size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      className="clean-close-result"
-                      onClick={() => setResultData(null)}
-                      title="Tutup"
-                      aria-label="Tutup"
-                    >
-                      <IconClose size={13} />
-                    </button>
-                  </div>
-                </div>
-
-                <p className="clean-result-summary">
-                  {formatUiText(resultData.summary)}
-                </p>
-                {resultData.aiProvider && (
-                  <p className="ai-result-note is-ai">
-                    <IconSparkle size={11} />
-                    <span>
-                      Diproses oleh {resultData.aiProvider}
-                      {resultData.aiModel ? ` (${resultData.aiModel})` : ''}
-                    </span>
-                  </p>
-                )}
-                {resultData.aiError && (
-                  <p className="ai-result-note is-fallback">
-                    AI eksternal belum terhubung ({resultData.aiError}). Hasil diekstrak oleh Engine Lokal.
-                  </p>
-                )}
-
-                {/* AJAKAN HUBUNGKAN AI: Mode Instan hanya mencocokkan kata kunci */}
-                {resultData.engine === 'local' && !resultData.aiProvider && !resultData.aiError && (
-                  <div className={`ai-upgrade-card ${resultData.isQuestion ? 'is-question' : ''}`} role="note">
-                    <span className="ai-upgrade-icon">
-                      <IconSparkle size={15} />
-                    </span>
-                    <div className="ai-upgrade-text">
-                      <strong>
-                        {resultData.isQuestion
-                          ? 'Mau jawaban yang lebih akurat & nyambung?'
-                          : 'Mode Instan: jago ekstrak tabel, angka & tanggal'}
-                      </strong>
-                      <span>
-                        {resultData.isQuestion
-                          ? 'Mode Instan hanya mencocokkan kata kunci, jadi jawaban bisa kurang tepat. Hubungkan Model AI agar pertanyaanmu benar-benar dipahami.'
-                          : 'Untuk tanya-jawab isi dokumen yang butuh pemahaman (kontrak, laporan, aturan), hubungkan AI agar jawabannya lebih akurat.'}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      id="open-ai-settings-from-result"
-                      className="ai-upgrade-btn"
-                      onClick={() => setConfigModalOpen(true)}
-                    >
-                      <IconSettings size={13} />
-                      <span>Hubungkan AI</span>
-                    </button>
-                  </div>
-                )}
-
-                {/* JAWABAN PINTAR & KUTIPAN BUKTI DOKUMEN TERVERIFIKASI */}
-                {(resultData.answer || (resultData.verifiedQuotes && resultData.verifiedQuotes.length > 0)) && (
-                  <div className="verified-answer-card">
-                    <div className="vac-head">
-                      <span className="vac-badge">
-                        <IconShield size={13} />
-                        <span>
-                          {resultData.engine === 'local'
-                            ? resultData.isQuestion
-                              ? 'HASIL PENCARIAN KATA KUNCI'
-                              : 'HASIL EKSTRAK DOKUMEN'
-                            : 'JAWABAN TERVERIFIKASI'}
-                        </span>
-                      </span>
-                      {resultData.docName && (
-                        <span className="vac-source-name" title={resultData.docName}>
-                          {truncateFileName(resultData.docName)}
-                        </span>
-                      )}
-                    </div>
-                    {resultData.answer && (
-                      <div className="vac-body">
-                        {resultData.answer.split('\n').map((line, i) => (
-                          <p key={i}>{formatUiText(line)}</p>
-                        ))}
-                      </div>
-                    )}
-                    {resultData.verifiedQuotes && resultData.verifiedQuotes.length > 0 && (
-                      <div className="vac-quotes">
-                        <span className="vac-quotes-title">Kutipan Sumber:</span>
-                        <div className="vac-quotes-grid">
-                          {resultData.verifiedQuotes.map((q, idx) => (
-                            <div key={idx} className="vac-quote-item">
-                              <span className="vac-quote-ref" title={q.source}>
-                                {formatUiText(q.source)}
-                              </span>
-                              <p className="vac-quote-text">
-                                &ldquo;{formatUiText(q.quote)}&rdquo;
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {activeResultTab === 'table' ? (
-                  <div className="clean-table-wrapper">
-                    <table className="clean-data-table">
-                      <thead>
-                        <tr>
-                          {resultData.columns.map((col) => (
-                            <th key={col}>{col}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {resultData.rows.map((row, rIdx) => (
-                          <tr key={rIdx}>
-                            {row.map((cell, cIdx) => (
-                              <td key={cIdx}>{formatUiText(cell)}</td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <pre className="clean-code-preview">{formatResultAsText()}</pre>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* THREE FEATURE CARDS ROW BELOW INPUT */}
-          <div className="quick-features-grid">
-            <button
-              type="button"
-              className="quick-feature-card"
-              onClick={() => handleQuickDemo('dokumen')}
-            >
-              <div className="qf-top">
-                <span className="qf-number">DOKUMEN PINTAR</span>
-                <span className="qf-arrow">
-                  <IconArrowUpRight size={14} />
-                </span>
-              </div>
-              <h3>{isLocalMode ? 'Ekstrak Data Dokumen' : 'Tanya & Tabel Dokumen'}</h3>
               <p>
-                {isLocalMode
-                  ? 'Upload PDF atau CSV, tarik tabel, angka & tanggal pentingnya jadi rapi.'
-                  : 'Upload PDF atau CSV, tanya isinya dan ubah jadi tabel rapi.'}
+                Tanya dokumen, gabung &amp; pisah PDF, tarik tabel dari link web, atau rapikan chat orderan dalam sekali klik.
               </p>
-            </button>
-
-            <button
-              type="button"
-              className="quick-feature-card"
-              onClick={() => handleQuickDemo('toko')}
-            >
-              <div className="qf-top">
-                <span className="qf-number">EKSTRAK WEB</span>
-                <span className="qf-arrow">
-                  <IconArrowUpRight size={14} />
-                </span>
-              </div>
-              <h3>Link Web Jadi Tabel</h3>
-              <p>Tempel link website, tarik tabel dan datanya langsung ke Excel.</p>
-            </button>
-
-            <div className="quick-feature-card dotted-card" aria-label="Segera hadir">
-              <div className="qf-top">
-                <span className="qf-badge-vote">SEGERA HADIR</span>
-              </div>
-              <h3>Bandingkan Dokumen Terverifikasi</h3>
-              <p>Cek selisih harga, klausul, dan isi dari 2 dokumen sekaligus.</p>
             </div>
-          </div>
-        </section>
 
-        {/* ROUNDED GEOMETRIC CONTAINER: ALAT BANTU FAVORIT */}
-        <section className="framed-geometric-section" id="alat">
-          <div className="framed-section-header">
-            <div>
-              <span className="section-eyebrow">PRAKTIS &amp; LANGSUNG JADI</span>
-              <h2>Kerjaan Beres Tanpa Ribet</h2>
+            <div className="progressive-cards-grid">
+              {/* Card 1 */}
+              <article className="prog-card tone-light">
+                <button
+                  type="button"
+                  className="prog-corner-arrow"
+                  onClick={() => {
+                    handleQuickDemo('dokumen')
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }}
+                  title="Coba Sekarang"
+                >
+                  <IconArrowUpRight size={15} />
+                </button>
+                <div className="prog-card-head">
+                  <span className="prog-tool-chip">Dokumen Pintar</span>
+                  <h3>
+                    Tanya &amp; Ekstrak
+                    <br />
+                    Isi Dokumen
+                  </h3>
+                  <p>
+                    &ldquo;Ambil rincian barang &amp; biaya dari dokumen RAB ini.&rdquo;
+                  </p>
+                </div>
+                <div className="prog-card-preview">
+                  <div className="clean-mini-table">
+                    <div className="cmt-row cmt-head">
+                      <span>Item RAB</span>
+                      <span>Total</span>
+                      <span>Sumber</span>
+                    </div>
+                    <div className="cmt-row">
+                      <span>Arabika Gayo</span>
+                      <span>Rp 67,5 Jt</span>
+                      <span className="cmt-tag">Pasal 2</span>
+                    </div>
+                    <div className="cmt-row">
+                      <span>Robusta Fine</span>
+                      <span>Rp 45,0 Jt</span>
+                      <span className="cmt-tag">Pasal 2</span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+              {/* Card 2 */}
+              <article className="prog-card tone-mid">
+                <button
+                  type="button"
+                  className="prog-corner-arrow"
+                  onClick={() => {
+                    handleQuickDemo('toko')
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }}
+                  title="Coba Sekarang"
+                >
+                  <IconArrowUpRight size={15} />
+                </button>
+                <div className="prog-card-head">
+                  <span className="prog-tool-chip">Ekstrak Web</span>
+                  <h3>
+                    Salin Link Web
+                    <br />
+                    Jadi Tabel Excel
+                  </h3>
+                  <p>
+                    &ldquo;Web Wikipedia Kopi di Indonesia&rdquo;
+                  </p>
+                </div>
+                <div className="prog-card-preview">
+                  <div className="clean-mini-table">
+                    <div className="cmt-row cmt-head">
+                      <span>Data Web</span>
+                      <span>Hasil</span>
+                    </div>
+                    <div className="cmt-row">
+                      <span>Tabel &amp; Daftar</span>
+                      <span className="cmt-tag">Rapi</span>
+                    </div>
+                    <div className="cmt-row">
+                      <span>Format File</span>
+                      <span className="cmt-tag">CSV / Excel</span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+              {/* Card 3 */}
+              <article className="prog-card tone-deep">
+                <button
+                  type="button"
+                  className="prog-corner-arrow"
+                  onClick={() => {
+                    handleQuickDemo('teks')
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }}
+                  title="Coba Sekarang"
+                >
+                  <IconArrowUpRight size={15} />
+                </button>
+                <div className="prog-card-head">
+                  <span className="prog-tool-chip dark-chip">Rekap Order</span>
+                  <h3>
+                    Rekap Chat WA
+                    <br />
+                    Langsung Jadi Rapi
+                  </h3>
+                  <p>
+                    &ldquo;Kak pesan Kopi Gayo 2 bungkus ke Jl. Merdeka Bandung a.n Budi (08123456789)&rdquo;
+                  </p>
+                </div>
+                <div className="prog-card-preview clean-order-preview">
+                  <div className="cop-grid">
+                    <div className="cop-item">
+                      <span className="cop-label">Nama:</span>
+                      <strong className="cop-val">
+                        Budi <span className="cop-sub">(08123456789)</span>
+                      </strong>
+                    </div>
+                    <div className="cop-item">
+                      <span className="cop-label">Alamat:</span>
+                      <strong className="cop-val">
+                        Jl. Merdeka Bandung
+                      </strong>
+                    </div>
+                    <div className="cop-item full-width">
+                      <span className="cop-label">Pesanan:</span>
+                      <strong className="cop-val highlight-order">
+                        2x Kopi Gayo <span className="cop-dot">•</span>
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+              </article>
             </div>
-            <p>
-              Tanya dokumen, tarik tabel dari link web, atau rapikan chat orderan dalam sekali klik.
-            </p>
-          </div>
-
-          <div className="progressive-cards-grid">
-            {/* Card 1 */}
-            <article className="prog-card tone-light">
-              <button
-                type="button"
-                className="prog-corner-arrow"
-                onClick={() => {
-                  handleQuickDemo('dokumen')
-                  window.scrollTo({ top: 0, behavior: 'smooth' })
-                }}
-                title="Coba Sekarang"
-              >
-                <IconArrowUpRight size={15} />
-              </button>
-              <div className="prog-card-head">
-                <span className="prog-tool-chip">Dokumen Pintar</span>
-                <h3>
-                  Tanya &amp; Ekstrak
-                  <br />
-                  Isi Dokumen
-                </h3>
-                <p>
-                  &ldquo;Ambil rincian barang &amp; biaya dari dokumen RAB ini.&rdquo;
-                </p>
-              </div>
-              <div className="prog-card-preview">
-                <div className="clean-mini-table">
-                  <div className="cmt-row cmt-head">
-                    <span>Item RAB</span>
-                    <span>Total</span>
-                    <span>Sumber</span>
-                  </div>
-                  <div className="cmt-row">
-                    <span>Arabika Gayo</span>
-                    <span>Rp 67,5 Jt</span>
-                    <span className="cmt-tag">Pasal 2</span>
-                  </div>
-                  <div className="cmt-row">
-                    <span>Robusta Fine</span>
-                    <span>Rp 45,0 Jt</span>
-                    <span className="cmt-tag">Pasal 2</span>
-                  </div>
-                </div>
-              </div>
-            </article>
-
-            {/* Card 2 */}
-            <article className="prog-card tone-mid">
-              <button
-                type="button"
-                className="prog-corner-arrow"
-                onClick={() => {
-                  handleQuickDemo('toko')
-                  window.scrollTo({ top: 0, behavior: 'smooth' })
-                }}
-                title="Coba Sekarang"
-              >
-                <IconArrowUpRight size={15} />
-              </button>
-              <div className="prog-card-head">
-                <span className="prog-tool-chip">Ekstrak Web</span>
-                <h3>
-                  Salin Link Web
-                  <br />
-                  Jadi Tabel Excel
-                </h3>
-                <p>
-                  &ldquo;Web Wikipedia Kopi di Indonesia&rdquo;
-                </p>
-              </div>
-              <div className="prog-card-preview">
-                <div className="clean-mini-table">
-                  <div className="cmt-row cmt-head">
-                    <span>Data Web</span>
-                    <span>Hasil</span>
-                  </div>
-                  <div className="cmt-row">
-                    <span>Tabel &amp; Daftar</span>
-                    <span className="cmt-tag">Rapi</span>
-                  </div>
-                  <div className="cmt-row">
-                    <span>Format File</span>
-                    <span className="cmt-tag">CSV / Excel</span>
-                  </div>
-                </div>
-              </div>
-            </article>
-
-            {/* Card 3 */}
-            <article className="prog-card tone-deep">
-              <button
-                type="button"
-                className="prog-corner-arrow"
-                onClick={() => {
-                  handleQuickDemo('teks')
-                  window.scrollTo({ top: 0, behavior: 'smooth' })
-                }}
-                title="Coba Sekarang"
-              >
-                <IconArrowUpRight size={15} />
-              </button>
-              <div className="prog-card-head">
-                <span className="prog-tool-chip dark-chip">Rekap Order</span>
-                <h3>
-                  Rekap Chat WA
-                  <br />
-                  Langsung Jadi Rapi
-                </h3>
-                <p>
-                  &ldquo;Kak pesan Kopi Gayo 2 bungkus ke Jl. Merdeka Bandung a.n Budi (08123456789)&rdquo;
-                </p>
-              </div>
-              <div className="prog-card-preview clean-order-preview">
-                <div className="cop-grid">
-                  <div className="cop-item">
-                    <span className="cop-label">Nama:</span>
-                    <strong className="cop-val">
-                      Budi <span className="cop-sub">(08123456789)</span>
-                    </strong>
-                  </div>
-                  <div className="cop-item">
-                    <span className="cop-label">Alamat:</span>
-                    <strong className="cop-val">
-                      Jl. Merdeka Bandung 
-                    </strong>
-                  </div>
-                  <div className="cop-item full-width">
-                    <span className="cop-label">Pesanan:</span>
-                    <strong className="cop-val highlight-order">
-                      2x Kopi Gayo <span className="cop-dot">•</span>
-                    </strong>
-                  </div>
-                </div>
-              </div>
-            </article>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* CLEAN MINIMALIST TIP-JAR & QRIS BANNER */}
         <section className="clean-tipjar-banner" id="traktir-cilok">
@@ -1482,7 +1399,6 @@ function App() {
                   </button>
                 )
               })}
- 
             </div>
           </div>
 
@@ -1689,7 +1605,6 @@ function App() {
           <div className="clean-modal-box modal-qris-box" onClick={(e) => e.stopPropagation()}>
             <div className="clean-modal-top">
               <div>
-                {/* <span className="section-eyebrow">TIP-JAR PITULUNG</span> */}
                 <h3>Patungan Server &amp; Traktir Cilok</h3>
               </div>
               <button
@@ -1756,7 +1671,6 @@ function App() {
                       return (
                         <small className="custom-cilok-hint is-min-warning">
                           Minimal donasi <strong>Rp 1.000</strong>
-                          
                         </small>
                       )
                     }
@@ -1764,7 +1678,6 @@ function App() {
                       return (
                         <small className="custom-cilok-hint is-min-warning">
                           Maksimal donasi <strong>Rp 5.000.000</strong> per transaksi
-                     
                         </small>
                       )
                     }
@@ -1810,6 +1723,14 @@ function App() {
         </div>
       )}
     </div>
+  )
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <PitulungAppShell />
+    </BrowserRouter>
   )
 }
 

@@ -4,6 +4,6 @@ import { pitulungServerPlugin } from './server/viteApiPlugin.js'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: './',
+  base: '/',
   plugins: [react(), pitulungServerPlugin()],
 })

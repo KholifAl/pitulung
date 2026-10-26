@@ -247,7 +247,11 @@ export default {
     }
 
     if (env?.ASSETS) {
-      return env.ASSETS.fetch(request)
+      const assetRes = await env.ASSETS.fetch(request)
+      if (assetRes.status === 404 && !pathname.startsWith('/api/')) {
+        return env.ASSETS.fetch(new Request(new URL('/index.html', request.url), request))
+      }
+      return assetRes
     }
 
     return new Response('Not Found', { status: 404 })
