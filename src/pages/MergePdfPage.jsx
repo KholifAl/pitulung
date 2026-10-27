@@ -10,7 +10,6 @@ import {
   IconMergePdf,
   IconPlus,
   IconShield,
-  IconSparkle,
   IconTrash,
   IconUpload,
 } from '../components/Icons'
@@ -129,18 +128,11 @@ export default function MergePdfPage() {
 
   return (
     <section className="clean-hero-section">
-      <div className="hero-top-meta">
-        <span className="meta-pill-badge">
-          <IconSparkle size={12} />
-          <span> 100% file aman di browsermu</span>
-        </span>
-      </div>
-
       <h1 className="editorial-hero-title">
         Gabung Beberapa PDF
       </h1>
 
-      {/* CENTRAL WORKSPACE CARD — MERGE PDF */}
+      {/* CENTRAL WORKSPACE CARD */}
       <div
         className={`clean-workspace-card ${isDragging ? 'is-dragging' : ''}`}
         onDragOver={(e) => {

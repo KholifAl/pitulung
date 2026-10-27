@@ -7,7 +7,6 @@ import {
   IconFileText,
   IconPlus,
   IconShield,
-  IconSparkle,
   IconSplitPdf,
   IconUpload,
 } from '../components/Icons'
@@ -119,13 +118,6 @@ export default function SplitPdfPage() {
 
   return (
     <section className="clean-hero-section">
-      <div className="hero-top-meta">
-        <span className="meta-pill-badge">
-          <IconSparkle size={12} />
-          <span>PISAH HALAMAN PDF</span>
-        </span>
-      </div>
-
       <h1 className="editorial-hero-title">
         Pisahkan halaman PDF sesuai kebutuhanmu
       </h1>
@@ -134,7 +126,7 @@ export default function SplitPdfPage() {
         Ambil halaman tertentu atau pecah berkas menjadi file terpisah tanpa ribet.
       </p>
 
-      {/* CENTRAL WORKSPACE CARD — SPLIT PDF */}
+      {/* CENTRAL WORKSPACE CARD */}
       <div
         className={`clean-workspace-card ${isDragging ? 'is-dragging' : ''}`}
         onDragOver={(e) => {
@@ -291,10 +283,9 @@ export default function SplitPdfPage() {
               }}
             >
               <div className="pdf-mode-card-top">
-                <span className="pdf-mode-tag">OPSI A</span>
+                <strong>Rentang Halaman Kustom</strong>
                 <span className="pdf-mode-radio-dot" />
               </div>
-              <strong>Rentang Halaman Kustom</strong>
               <span>
                 Ambil halaman tertentu sesuai urutan yang kamu ketik (misal: <code>1-3, 5, 8-10</code>).
               </span>
@@ -311,10 +302,9 @@ export default function SplitPdfPage() {
               }}
             >
               <div className="pdf-mode-card-top">
-                <span className="pdf-mode-tag">OPSI B</span>
+                <strong>Pisah Semua Halaman Terpisah</strong>
                 <span className="pdf-mode-radio-dot" />
               </div>
-              <strong>Pisah Semua Halaman Terpisah</strong>
               <span>
                 Pecah setiap halaman menjadi file PDF mandiri (bisa diunduh satuan atau bundel <code>.zip</code>).
               </span>

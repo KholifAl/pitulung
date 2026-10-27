@@ -121,7 +121,7 @@ export async function createSamplePdfFile(title = 'Dokumen-Sampel.pdf', pageCoun
       color: rgb(0.39, 0.09, 0.16),
     })
 
-    page.drawText('PITULUNG — DOKUMEN SAMPEL PDF', {
+    page.drawText('PITULUNG: DOKUMEN SAMPEL PDF', {
       x: 62,
       y: height - 78,
       size: 11,
@@ -129,7 +129,7 @@ export async function createSamplePdfFile(title = 'Dokumen-Sampel.pdf', pageCoun
       color: rgb(1, 1, 1),
     })
 
-    page.drawText(`${subtitle} — Halaman ${i} dari ${pageCount}`, {
+    page.drawText(`${subtitle}, Halaman ${i} dari ${pageCount}`, {
       x: 48,
       y: height - 135,
       size: 18,

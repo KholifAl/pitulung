@@ -3,6 +3,7 @@ import {
   BrowserRouter,
   Routes,
   Route,
+  Link,
   useNavigate,
   useLocation,
 } from 'react-router-dom'
@@ -45,10 +46,15 @@ import {
   IconMergePdf,
   IconSplitPdf,
   IconChevronDown,
+  IconGlobe,
+  IconMail,
+  IconEye,
+  IconEyeOff,
 } from './components/Icons'
 import { truncateFileName } from './utils/pdfTools'
 import MergePdfPage from './pages/MergePdfPage'
 import SplitPdfPage from './pages/SplitPdfPage'
+import LegalPage, { LEGAL_PAGES_META, AboutPage } from './pages/LegalPage'
 import './App.css'
 
 function formatUiText(text = '') {
@@ -79,6 +85,25 @@ const FORMAT_OPTIONS = [
   { value: 'Ringkasan & Poin Kunci', label: 'Ringkasan Poin', note: 'Intisari' },
   { value: 'JSON Terstruktur', label: 'Format JSON', note: 'Data API' },
 ]
+
+const CONTACT_CATEGORIES = [
+  { value: 'Pertanyaan Umum', label: 'Pertanyaan Umum', note: 'Bantuan' },
+  { value: 'Saran & Masukan Fitur', label: 'Saran & Masukan Fitur', note: 'Ide Baru' },
+  { value: 'Laporan Kendala / Bug', label: 'Laporan Kendala / Bug', note: 'Teknis' },
+  { value: 'Kerja Sama & Lainnya', label: 'Kerja Sama & Lainnya', note: 'Kemitraan' },
+]
+
+const UI_LANGUAGE_OPTIONS = [
+  { code: 'id', label: 'Bahasa Indonesia', badge: 'ID', available: true },
+  { code: 'en', label: 'English (Segera)', badge: 'EN', available: false },
+]
+
+function getProtectedContactEmail() {
+  // Dirakit secara dinamis di memori agar aman dari bot scraper HTML statis
+  const userPart = ['kvgame', '99'].join('')
+  const domainPart = ['gmail', 'com'].join('.')
+  return `${userPart}@${domainPart}`
+}
 
 const NAV_TOOL_ROUTES = [
   {
@@ -207,7 +232,6 @@ function CleanDropdown({
               >
                 <div className="cd-item-content">
                   <span className="cd-item-label">{option.label}</span>
-                  {option.note && <span className="cd-item-note">{option.note}</span>}
                 </div>
                 {isSelected && (
                   <span className="cd-item-check" aria-hidden="true">
@@ -256,7 +280,16 @@ function PitulungAppShell() {
   const [serverHasKey, setServerHasKey] = useState(false)
   const [liveModelsByProvider, setLiveModelsByProvider] = useState({})
   const [configModalOpen, setConfigModalOpen] = useState(false)
+  const [showApiKey, setShowApiKey] = useState(false)
   const [qrisModalOpen, setQrisModalOpen] = useState(false)
+  const [contactModalOpen, setContactModalOpen] = useState(false)
+  const [contactCategory, setContactCategory] = useState('Pertanyaan Umum')
+  const [contactName, setContactName] = useState('')
+  const [contactMessage, setContactMessage] = useState('')
+  const [contactAgreed, setContactAgreed] = useState(false)
+  const [contactEmailCopied, setContactEmailCopied] = useState(false)
+  const [uiLang, setUiLang] = useState('id')
+  const [langMenuOpen, setLangMenuOpen] = useState(false)
   const [selectedCilokAmount, setSelectedCilokAmount] = useState(5000)
   const [isCustomCilok, setIsCustomCilok] = useState(false)
   const [customCilokInput, setCustomCilokInput] = useState('')
@@ -268,6 +301,7 @@ function PitulungAppShell() {
   const fileInputRef = useRef(null)
   const resultRef = useRef(null)
   const navMenuRef = useRef(null)
+  const langMenuRef = useRef(null)
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -278,8 +312,11 @@ function PitulungAppShell() {
       if (navMenuRef.current && !navMenuRef.current.contains(e.target)) {
         setNavMenuOpen(false)
       }
+      if (langMenuRef.current && !langMenuRef.current.contains(e.target)) {
+        setLangMenuOpen(false)
+      }
     }
-    if (navMenuOpen) {
+    if (navMenuOpen || langMenuOpen) {
       document.addEventListener('mousedown', handleOutsideNavClick)
       document.addEventListener('touchstart', handleOutsideNavClick)
     }
@@ -287,7 +324,7 @@ function PitulungAppShell() {
       document.removeEventListener('mousedown', handleOutsideNavClick)
       document.removeEventListener('touchstart', handleOutsideNavClick)
     }
-  }, [navMenuOpen])
+  }, [navMenuOpen, langMenuOpen])
 
   useEffect(() => {
     let active = true
@@ -561,6 +598,10 @@ function PitulungAppShell() {
 
   const activeProvider = getProviderMeta(apiConfig.provider)
   const isLocalMode = apiConfig.provider === 'local'
+  const isInfoOrLegalPage =
+    location.pathname === '/about' ||
+    location.pathname === '/tentang' ||
+    LEGAL_PAGES_META.some((p) => p.path === location.pathname)
   const baseModels = liveModelsByProvider[apiConfig.provider] || activeProvider.models || []
   const modelOptions =
     apiConfig.model && !baseModels.some((m) => m.id === apiConfig.model)
@@ -574,13 +615,6 @@ function PitulungAppShell() {
 
   const homeExtractionPage = (
     <section className="clean-hero-section">
-      <div className="hero-top-meta">
-        <span className="meta-pill-badge">
-          <IconSparkle size={12} />
-          <span>BERES DALAM HITUNGAN DETIK</span>
-        </span>
-      </div>
-
       <h1 className="editorial-hero-title">
         Mau dibantu{' '}
         <span className="inline-arrow-pill">
@@ -1141,9 +1175,6 @@ function PitulungAppShell() {
 
                 {navMenuOpen && (
                   <div className="nav-tools-menu" role="menu" aria-label="Pilih Alat Bantu Pitulung">
-                    <div className="nav-tools-menu-header">
-                      <span>PILIH ALAT BANTU</span>
-                    </div>
                     {NAV_TOOL_ROUTES.map((item) => {
                       const IconComp = item.icon
                       const isActive = location.pathname === item.path
@@ -1164,9 +1195,7 @@ function PitulungAppShell() {
                           <span className="ntm-body">
                             <span className="ntm-title-row">
                               <strong>{item.label}</strong>
-                              <span className="ntm-badge">{item.badge}</span>
                             </span>
-                            <small>{item.shortDesc}</small>
                           </span>
                         </button>
                       )
@@ -1179,7 +1208,12 @@ function PitulungAppShell() {
                 type="button"
                 className="nav-cta-outline"
                 onClick={() => {
-                  document.getElementById('traktir-cilok')?.scrollIntoView({ behavior: 'smooth' })
+                  const tipjarEl = document.getElementById('traktir-cilok')
+                  if (tipjarEl) {
+                    tipjarEl.scrollIntoView({ behavior: 'smooth' })
+                  } else {
+                    setQrisModalOpen(true)
+                  }
                 }}
               >
                 <IconCilok size={16} />
@@ -1191,33 +1225,20 @@ function PitulungAppShell() {
           </header>
         </div>
 
-        {/* ROUTE SWITCHER BAR (PILLS) — HANYA DITAMPILKAN DI HALAMAN UTAMA (/) */}
-        {location.pathname === '/' && (
-          <nav className="tool-route-switcher" aria-label="Navigasi Cepat Alat Pitulung">
-            {NAV_TOOL_ROUTES.map((item) => {
-              const IconComp = item.icon
-              const isActive = location.pathname === item.path
-              return (
-                <button
-                  key={item.path}
-                  type="button"
-                  className={`tool-route-pill ${isActive ? 'is-active' : ''}`}
-                  onClick={() => navigate(item.path)}
-                  aria-current={isActive ? 'page' : undefined}
-                >
-                  <IconComp size={14} />
-                  <span>{item.label}</span>
-                </button>
-              )
-            })}
-          </nav>
-        )}
-
         {/* ROUTE VIEWPORTS */}
         <Routes>
           <Route path="/" element={homeExtractionPage} />
           <Route path="/merge-pdf" element={<MergePdfPage />} />
           <Route path="/split-pdf" element={<SplitPdfPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/tentang" element={<AboutPage />} />
+          {LEGAL_PAGES_META.map((page) => (
+            <Route
+              key={page.slug}
+              path={page.path}
+              element={<LegalPage pageSlug={page.slug} />}
+            />
+          ))}
           <Route path="*" element={homeExtractionPage} />
         </Routes>
 
@@ -1226,7 +1247,6 @@ function PitulungAppShell() {
           <section className="framed-geometric-section" id="alat">
             <div className="framed-section-header">
               <div>
-                <span className="section-eyebrow">PRAKTIS &amp; LANGSUNG JADI</span>
                 <h2>Kerjaan Beres Tanpa Ribet</h2>
               </div>
               <p>
@@ -1249,7 +1269,6 @@ function PitulungAppShell() {
                   <IconArrowUpRight size={15} />
                 </button>
                 <div className="prog-card-head">
-                  <span className="prog-tool-chip">Dokumen Pintar</span>
                   <h3>
                     Tanya &amp; Ekstrak
                     <br />
@@ -1294,7 +1313,6 @@ function PitulungAppShell() {
                   <IconArrowUpRight size={15} />
                 </button>
                 <div className="prog-card-head">
-                  <span className="prog-tool-chip">Ekstrak Web</span>
                   <h3>
                     Salin Link Web
                     <br />
@@ -1336,7 +1354,6 @@ function PitulungAppShell() {
                   <IconArrowUpRight size={15} />
                 </button>
                 <div className="prog-card-head">
-                  <span className="prog-tool-chip dark-chip">Rekap Order</span>
                   <h3>
                     Rekap Chat WA
                     <br />
@@ -1373,118 +1390,230 @@ function PitulungAppShell() {
           </section>
         )}
 
-        {/* CLEAN MINIMALIST TIP-JAR & QRIS BANNER */}
-        <section className="clean-tipjar-banner" id="traktir-cilok">
-          <div className="ctb-left">
-            <div className="ctb-badge-row">
-              <span className="ctb-pill">TIP-JAR</span>
-              <span className="ctb-sub">PATUNGAN SERVER &amp; CILOK</span>
+        {/* CLEAN MINIMALIST TIP-JAR & QRIS BANNER (DISEMBUNYIKAN DI HALAMAN LEGAL & TENTANG) */}
+        {!isInfoOrLegalPage && (
+          <section className="clean-tipjar-banner" id="traktir-cilok">
+            <div className="ctb-left">
+              <h2>Kerjaanmu terbantu?</h2>
+              <p>
+                Kalau alat ini membantu kerjaanmu, boleh banget traktir cilok atau ikut patungan biaya server biar web ini tetap jalan!
+              </p>
+              <div className="ctb-wallets-row" role="group" aria-label="Pilih nominal traktir cilok">
+                {CILOK_NOMINALS.map((item) => {
+                  const isSelected = !isCustomCilok && selectedCilokAmount === item.value
+                  return (
+                    <button
+                      key={item.value}
+                      type="button"
+                      className={`cilok-nominal-btn ${isSelected ? 'active' : ''}`}
+                      onClick={() => handleSelectPresetCilok(item.value)}
+                    >
+                      <IconCilok size={14} />
+                      <span>{item.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
-            <h2>Kerjaanmu terbantu?</h2>
-            <p>
-              Kalau alat ini membantu kerjaanmu, boleh banget traktir cilok atau ikut patungan biaya server biar web ini tetap jalan!
-            </p>
-            <div className="ctb-wallets-row" role="group" aria-label="Pilih nominal traktir cilok">
-              {CILOK_NOMINALS.map((item) => {
-                const isSelected = !isCustomCilok && selectedCilokAmount === item.value
+
+            <div className="ctb-right">
+              <div
+                className="clean-qris-card"
+                role="button"
+                tabIndex={0}
+                onClick={() => setQrisModalOpen(true)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setQrisModalOpen(true)
+                  }
+                }}
+                title="Klik untuk memperbesar QRIS"
+              >
+                <div className="clean-qris-header">
+                  <strong>QRIS</strong>
+                  <span className="qris-amount-tag">{formatRupiah(selectedCilokAmount)}</span>
+                </div>
+                <div className="real-qris-img-wrap">
+                  {qrisDataUrl ? (
+                    <img
+                      src={qrisDataUrl}
+                      alt={`QRIS ${MERCHANT_INFO.name} ${formatRupiah(selectedCilokAmount)}`}
+                      className="real-qris-img"
+                    />
+                  ) : (
+                    <div className="clean-qr-matrix" aria-hidden="true" />
+                  )}
+                </div>
+                <span className="clean-qris-action">
+                  <span>Perbesar QRIS</span>
+                  <IconArrowUpRight size={12} />
+                </span>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* MINIMALIST FOOTER */}
+        <footer className="clean-footer">
+          {/* BARIS ATAS: KIRI (KEBIJAKAN LEGAL) DAN KANAN (TENTANG, KONTAK & PENGATURAN AI) */}
+          <div className="footer-upper-row">
+            <nav
+              className="footer-legal-links"
+              aria-label="Halaman Kebijakan Legal Website"
+            >
+              {LEGAL_PAGES_META.map((item) => {
+                const isActive = location.pathname === item.path
                 return (
-                  <button
-                    key={item.value}
-                    type="button"
-                    className={`cilok-nominal-btn ${isSelected ? 'active' : ''}`}
-                    onClick={() => handleSelectPresetCilok(item.value)}
+                  <Link
+                    key={item.slug}
+                    to={item.path}
+                    className={`footer-legal-link ${isActive ? 'is-active' : ''}`}
+                    aria-current={isActive ? 'page' : undefined}
                   >
-                    <IconCilok size={14} />
-                    <span>{item.label}</span>
-                  </button>
+                    {item.shortLabel}
+                  </Link>
                 )
               })}
+            </nav>
+
+            <div className="footer-info-actions">
+              <div className="footer-info-links">
+                <Link
+                  to="/about"
+                  className={`footer-legal-link ${location.pathname === '/about' || location.pathname === '/tentang' ? 'is-active' : ''}`}
+                  aria-current={location.pathname === '/about' || location.pathname === '/tentang' ? 'page' : undefined}
+                >
+                  Tentang
+                </Link>
+                <span className="footer-dot-sep" aria-hidden="true">•</span>
+                <button
+                  type="button"
+                  className="footer-legal-link footer-contact-link"
+                  onClick={() => setContactModalOpen(true)}
+                >
+                  Kontak
+                </button>
+              </div>
+
+              <span className="footer-v-sep" aria-hidden="true" />
+
+              <button
+                type="button"
+                className={`footer-api-link ${apiConfig.provider !== 'local' && engineOnline ? 'is-connected' : ''}`}
+                onClick={() => setConfigModalOpen(true)}
+              >
+                <span
+                  className={`footer-ai-dot ${
+                    apiConfig.provider === 'local'
+                      ? 'is-local'
+                      : engineOnline
+                        ? 'is-online'
+                        : 'is-ready'
+                  }`}
+                  aria-hidden="true"
+                />
+                <IconSettings size={13} />
+                <span>{engineOnline ? 'AI Terhubung' : 'Pengaturan AI'}</span>
+              </button>
             </div>
           </div>
 
-          <div className="ctb-right">
-            <div
-              className="clean-qris-card"
-              role="button"
-              tabIndex={0}
-              onClick={() => setQrisModalOpen(true)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  setQrisModalOpen(true)
-                }
-              }}
-              title="Klik untuk memperbesar QRIS"
-            >
-              <div className="clean-qris-header">
-                <strong>QRIS</strong>
-                <span className="qris-amount-tag">{formatRupiah(selectedCilokAmount)}</span>
-              </div>
-              <div className="real-qris-img-wrap">
-                {qrisDataUrl ? (
-                  <img
-                    src={qrisDataUrl}
-                    alt={`QRIS ${MERCHANT_INFO.name} ${formatRupiah(selectedCilokAmount)}`}
-                    className="real-qris-img"
-                  />
-                ) : (
-                  <div className="clean-qr-matrix" aria-hidden="true" />
-                )}
-              </div>
-              <span className="clean-qris-action">
-                <span>Perbesar QRIS</span>
-                <IconArrowUpRight size={12} />
+          {/* BARIS PALING BAWAH: KIRI (COPYRIGHT & DITENAGAI OLEH) DAN KANAN (BAHASA UI) */}
+          <div className="footer-bottom-bar">
+            <div className="footer-brand-copy">
+              <img src={logoImage} alt="" className="footer-mini-logo" />
+              <span>
+                © 2026 <strong>Pitulung</strong> - Alat bantu digital
+              </span>
+              <span className="footer-dot-sep" aria-hidden="true">•</span>
+              <span className="footer-powered-inline">
+                {apiConfig.provider === 'local'
+                  ? 'Ditenagai oleh OpenClaw'
+                  : `Ditenagai oleh ${activeProvider.label}`}
               </span>
             </div>
-          </div>
-        </section>
 
-        {/* MINIMALIST FOOTER — OPENCLAW MENTIONED ONLY ONCE HERE */}
-        <footer className="clean-footer">
-          <div className="footer-brand-copy">
-            <img src={logoImage} alt="" className="footer-mini-logo" />
-            <span>
-              © 2026 <strong>Pitulung</strong> - Alat bantu digital.
-            </span>
-          </div>
-
-          <div className="footer-engine-note">
-            <span>
-              {apiConfig.provider === 'local'
-                ? 'Ditenagai oleh OpenClaw'
-                : `Ditenagai oleh ${activeProvider.label}`}
-            </span>
-            <button
-              type="button"
-              className="footer-api-link"
-              onClick={() => setConfigModalOpen(true)}
+            <div
+              ref={langMenuRef}
+              className={`footer-lang-switcher ${langMenuOpen ? 'is-open' : ''}`}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setLangMenuOpen(false)
+              }}
             >
-              <IconSettings size={13} />
-              <span>{engineOnline ? 'AI Terhubung' : 'Pengaturan AI'}</span>
-            </button>
+              <button
+                type="button"
+                className="footer-lang-trigger"
+                onClick={() => setLangMenuOpen((prev) => !prev)}
+                aria-haspopup="listbox"
+                aria-expanded={langMenuOpen}
+                aria-label="Pilih Bahasa Antarmuka (UI)"
+              >
+                <IconGlobe size={13} />
+                <span>
+                  {UI_LANGUAGE_OPTIONS.find((l) => l.code === uiLang)?.label || 'Bahasa Indonesia'}
+                </span>
+                <span className={`footer-lang-caret ${langMenuOpen ? 'is-open' : ''}`}>
+                  <IconChevronDown size={12} />
+                </span>
+              </button>
+
+              {langMenuOpen && (
+                <ul className="footer-lang-menu" role="listbox" aria-label="Pilihan Bahasa UI">
+                  {UI_LANGUAGE_OPTIONS.map((lang) => {
+                    const isSelected = lang.code === uiLang
+                    return (
+                      <li
+                        key={lang.code}
+                        role="option"
+                        aria-selected={isSelected}
+                        aria-disabled={!lang.available}
+                        className={`footer-lang-item ${isSelected ? 'is-selected' : ''} ${
+                          !lang.available ? 'is-disabled' : ''
+                        }`}
+                        onClick={() => {
+                          if (!lang.available) return
+                          setUiLang(lang.code)
+                          setLangMenuOpen(false)
+                        }}
+                      >
+                        <div className="fli-left">
+                          <span className="fli-label">{lang.label}</span>
+                        </div>
+                        {isSelected && (
+                          <span className="fli-check" aria-hidden="true">
+                            <IconCheck size={13} />
+                          </span>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </div>
           </div>
         </footer>
       </div>
 
-      {/* MODAL PENGATURAN KONEKSI API */}
+      {/* MODAL PENGATURAN KONEKSI API / AI */}
       {configModalOpen && (
         <div
           className="clean-modal-overlay"
           onClick={() => setConfigModalOpen(false)}
           role="dialog"
           aria-modal="true"
-          aria-label="Pengaturan API"
+          aria-label="Pengaturan AI"
         >
-          <div className="clean-modal-box wide-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="clean-modal-top">
+          <div className="clean-modal-box wide-modal ai-config-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="clean-modal-top ai-modal-header">
               <div>
-                <span className="section-eyebrow">PENGATURAN AI</span>
-                <h3>Pilih Mesin AI</h3>
+                <h3>Pilih Mesin AI &amp; Ekstraksi</h3>
               </div>
               <button
                 type="button"
                 className="clean-modal-close"
                 onClick={() => setConfigModalOpen(false)}
+                aria-label="Tutup Pengaturan AI"
               >
                 <IconClose size={14} />
               </button>
@@ -1492,35 +1621,59 @@ function PitulungAppShell() {
 
             <form className="api-config-form" onSubmit={handleSaveApiConfig}>
               <div className="config-field">
-                <span>Mesin Pemroses</span>
+                <div className="config-field-label-row">
+                  <span>Penyedia Mesin Pemroses</span>
+                  <small>Pilih sesuai kebutuhan kecepatan atau kecerdasan</small>
+                </div>
                 <div className="provider-chip-grid" role="radiogroup" aria-label="Pilih mesin AI">
-                  {AI_PROVIDERS.map((p) => (
-                    <button
-                      key={p.id}
-                      id={`provider-${p.id}`}
-                      type="button"
-                      role="radio"
-                      aria-checked={apiConfig.provider === p.id}
-                      className={`provider-chip ${apiConfig.provider === p.id ? 'is-active' : ''}`}
-                      onClick={() => handleProviderChange(p.id)}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
+                  {AI_PROVIDERS.map((p) => {
+                    const isSelected = apiConfig.provider === p.id
+                    return (
+                      <button
+                        key={p.id}
+                        id={`provider-${p.id}`}
+                        type="button"
+                        role="radio"
+                        aria-checked={isSelected}
+                        className={`provider-chip ${isSelected ? 'is-active' : ''}`}
+                        onClick={() => handleProviderChange(p.id)}
+                      >
+                        <div className="provider-chip-top">
+                          <span className="provider-chip-tag">
+                            {p.id === 'local' ? 'Tanpa AI' : p.id === 'openclaw' ? 'Server Lokal' : 'Cloud AI'}
+                          </span>
+                          <span className="provider-radio-dot" aria-hidden="true" />
+                        </div>
+                        <strong className="provider-chip-title">{p.label}</strong>
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
 
               {apiConfig.provider === 'local' && (
-                <p className="config-info-box">
-                  Mode bawaan memakai parser lokal tanpa AI. Cepat, gratis, dan datamu tidak dikirim ke
-                  pihak ketiga.
-                </p>
+                <div className="config-info-card">
+                  <div className="cic-icon">
+                    <IconShield size={16} />
+                  </div>
+                  <div className="cic-body">
+                    <strong>Mode Instan (Parser Lokal Terverifikasi)</strong>
+                    <p>
+                      Memproses ekstraksi tabel, angka, tanggal, dan rekap chat secara instan tanpa AI eksternal. Gratis, tanpa kuota, dan dokumenmu tidak dikirim ke pihak ketiga.
+                    </p>
+                  </div>
+                </div>
               )}
 
               {apiConfig.provider !== 'local' && (
-                <>
+                <div className="config-ai-details-panel">
                   <div className="config-field">
-                    <span>Pilih Model AI</span>
+                    <div className="config-field-label-row">
+                      <span>Pilih Model AI</span>
+                      <small>
+                        Aktif: {apiConfig.model || activeProvider.defaultModel}
+                      </small>
+                    </div>
                     <CleanDropdown
                       id="config-model"
                       value={apiConfig.model || activeProvider.defaultModel}
@@ -1530,9 +1683,6 @@ function PitulungAppShell() {
                       size="default"
                       ariaLabel="Pilih Model AI"
                     />
-                    <small>
-                      Model aktif: <strong>{apiConfig.model || activeProvider.defaultModel}</strong>
-                    </small>
                   </div>
 
                   {apiConfig.provider === 'openclaw' && (
@@ -1549,31 +1699,45 @@ function PitulungAppShell() {
                   )}
 
                   <label className="config-field">
-                    <span>
-                      API Key Pribadi{' '}
-                      {serverHasKey || !activeProvider.needsKey ? '(Opsional)' : '(Wajib)'}
-                    </span>
-                    <input
-                      id="config-api-key"
-                      type="password"
-                      autoComplete="off"
-                      value={apiConfig.apiKey}
-                      onChange={(e) => setApiConfig({ ...apiConfig, apiKey: e.target.value })}
-                      placeholder={
-                        serverHasKey
-                          ? 'Kosongkan untuk memakai key server'
-                          : activeProvider.keyHint || 'Kosongkan jika tidak memakai token'
-                      }
-                    />
+                    <div className="config-field-label-row">
+                      <span>API Key Pribadi</span>
+                      <small>
+                        {serverHasKey || !activeProvider.needsKey ? 'Opsional' : 'Wajib Diisi'}
+                      </small>
+                    </div>
+                    <div className="config-key-input-wrap">
+                      <input
+                        id="config-api-key"
+                        type={showApiKey ? 'text' : 'password'}
+                        autoComplete="off"
+                        value={apiConfig.apiKey}
+                        onChange={(e) => setApiConfig({ ...apiConfig, apiKey: e.target.value })}
+                        placeholder={
+                          serverHasKey
+                            ? 'Kosongkan untuk memakai kuota server publik'
+                            : activeProvider.keyHint || 'Tempel API Key pribadimu di sini...'
+                        }
+                      />
+                      <button
+                        type="button"
+                        className="config-key-toggle-btn"
+                        onClick={() => setShowApiKey((prev) => !prev)}
+                        title={showApiKey ? 'Sembunyikan API Key' : 'Tampilkan API Key'}
+                        aria-label={showApiKey ? 'Sembunyikan API Key' : 'Tampilkan API Key'}
+                      >
+                        {showApiKey ? <IconEyeOff size={14} /> : <IconEye size={14} />}
+                      </button>
+                    </div>
                     <small className="config-security-note">
-                      <IconShield size={12} />
-                      {serverHasKey
-                        ? 'Server sudah punya key, jadi kamu tidak wajib mengisi.'
-                        : 'Key hanya disimpan di tab ini dan otomatis hilang saat tab ditutup.'}{' '}
-                      Key diteruskan lewat server Pitulung dan tidak pernah disimpan.
+                      <IconShield size={13} />
+                      <span>
+                        {serverHasKey
+                          ? 'Server sudah menyediakan kuota publik, jadi kamu tidak wajib mengisi key sendiri.'
+                          : 'API Key hanya disimpan sementara di sesi tab ini (sessionStorage) dan otomatis terhapus saat tab ditutup.'}
+                      </span>
                     </small>
                   </label>
-                </>
+                </div>
               )}
 
               <div className="config-actions-row">
@@ -1582,10 +1746,180 @@ function PitulungAppShell() {
                   className="clean-action-btn"
                   onClick={handleResetApiConfig}
                 >
-                  Reset
+                  Reset ke Bawaan
                 </button>
-                <button type="submit" className="clean-modal-done">
-                  Simpan Pengaturan
+                <button type="submit" className="clean-modal-done config-save-btn">
+                  <IconCheck size={14} />
+                  <span>Simpan Pengaturan</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* POPUP MODAL KONTAK KAMI (DENGAN CHECKLIST T&C + PRIVACY POLICY AGAR EMAIL AMAN) */}
+      {contactModalOpen && (
+        <div
+          className="clean-modal-overlay"
+          onClick={() => setContactModalOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Kontak Pitulung"
+        >
+          <div
+            className="clean-modal-box wide-modal contact-modal-box"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="clean-modal-top">
+              <div>
+                <h3>Kontak &amp; Masukan Pitulung</h3>
+              </div>
+              <button
+                type="button"
+                className="clean-modal-close"
+                onClick={() => setContactModalOpen(false)}
+                aria-label="Tutup Kontak"
+              >
+                <IconClose size={14} />
+              </button>
+            </div>
+
+            <p className="contact-modal-intro">
+              Punya pertanyaan, saran fitur, atau ingin melaporkan kendala? Isi pesan di bawah dan centang persetujuan untuk membuka kontak email resmi kami.
+            </p>
+
+            <form
+              className="contact-modal-form"
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (!contactAgreed) return
+                const email = getProtectedContactEmail()
+                const subject = encodeURIComponent(
+                  `[Pitulung - ${contactCategory}]${contactName.trim() ? ` dari ${contactName.trim()}` : ''}`
+                )
+                const body = encodeURIComponent(
+                  `${contactMessage.trim() || 'Halo tim Pitulung,'}\n\nPengirim: ${
+                    contactName.trim() || 'Pengguna Pitulung'
+                  }\nKategori: ${contactCategory}`
+                )
+                window.location.href = `mailto:${email}?subject=${subject}&body=${body}`
+              }}
+            >
+              <div className="config-field">
+                <span>Keperluan / Kategori</span>
+                <CleanDropdown
+                  id="contact-category"
+                  value={contactCategory}
+                  onChange={(val) => setContactCategory(val)}
+                  options={CONTACT_CATEGORIES}
+                  placeholder="Pilih Kategori"
+                  size="default"
+                  ariaLabel="Pilih Kategori Kontak"
+                />
+              </div>
+
+              <label className="config-field">
+                <span>Nama / Panggilan (Opsional)</span>
+                <input
+                  type="text"
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  placeholder="Misal: Budi / Admin Toko Kopi"
+                />
+              </label>
+
+              <label className="config-field">
+                <span>Pesan Singkat (Opsional)</span>
+                <textarea
+                  rows={3}
+                  className="contact-textarea"
+                  value={contactMessage}
+                  onChange={(e) => setContactMessage(e.target.value)}
+                  placeholder="Tulis pertanyaan, masukan fitur, atau kendala yang kamu alami..."
+                />
+              </label>
+
+              {/* CHECKLIST WAJIB TELAH MEMBACA T&C DAN PRIVACY POLICY */}
+              <label className={`contact-consent-box ${contactAgreed ? 'is-checked' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={contactAgreed}
+                  onChange={(e) => setContactAgreed(e.target.checked)}
+                />
+                <span className="contact-custom-checkbox" aria-hidden="true">
+                  {contactAgreed && <IconCheck size={12} />}
+                </span>
+                <span className="contact-consent-text">
+                  Saya telah membaca dan menyetujui{' '}
+                  <Link
+                    to="/terms"
+                    onClick={() => setContactModalOpen(false)}
+                  >
+                    Syarat &amp; Ketentuan
+                  </Link>{' '}
+                  serta{' '}
+                  <Link
+                    to="/privacy-policy"
+                    onClick={() => setContactModalOpen(false)}
+                  >
+                    Kebijakan Privasi
+                  </Link>{' '}
+                  Pitulung.
+                </span>
+              </label>
+
+              {/* KOTAK EMAIL YANG TERPROTEKSI HINGGA CHECKLIST DICENTANG */}
+              <div className={`contact-email-reveal-box ${contactAgreed ? 'is-unlocked' : 'is-locked'}`}>
+                {contactAgreed ? (
+                  <div className="cer-unlocked-row">
+                    <div className="cer-email-info">
+                      <span className="cer-icon">
+                        <IconMail size={15} />
+                      </span>
+                      <div>
+                        <small>Email Resmi Pengembang:</small>
+                        <strong>{getProtectedContactEmail()}</strong>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="doc-action-btn"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(getProtectedContactEmail())
+                        setContactEmailCopied(true)
+                        setTimeout(() => setContactEmailCopied(false), 2000)
+                      }}
+                    >
+                      {contactEmailCopied ? <IconCheck size={13} /> : <IconCopy size={13} />}
+                      <span>{contactEmailCopied ? 'Disalin' : 'Salin Email'}</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="cer-locked-note">
+                    <IconShield size={14} />
+                    <span>
+                      Centang persetujuan Syarat &amp; Ketentuan dan Kebijakan Privasi di atas untuk menampilkan alamat email resmi &amp; mengirim pesan.
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="config-actions-row">
+                <button
+                  type="button"
+                  className="clean-action-btn"
+                  onClick={() => setContactModalOpen(false)}
+                >
+                  Tutup
+                </button>
+                <button
+                  type="submit"
+                  className="clean-modal-done config-save-btn"
+                  disabled={!contactAgreed}
+                >
+                  <IconMail size={14} />
+                  <span>Kirim via Aplikasi Email</span>
                 </button>
               </div>
             </form>
