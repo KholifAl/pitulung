@@ -45,6 +45,7 @@ import {
   IconDownload,
   IconMergePdf,
   IconSplitPdf,
+  IconCompressPdf,
   IconChevronDown,
   IconGlobe,
   IconMail,
@@ -54,6 +55,7 @@ import {
 import { truncateFileName } from './utils/pdfTools'
 import MergePdfPage from './pages/MergePdfPage'
 import SplitPdfPage from './pages/SplitPdfPage'
+import CompressPdfPage from './pages/CompressPdfPage'
 import LegalPage, { LEGAL_PAGES_META, AboutPage } from './pages/LegalPage'
 import './App.css'
 
@@ -115,17 +117,24 @@ const NAV_TOOL_ROUTES = [
   },
   {
     path: '/merge-pdf',
-    label: 'Gabung PDF (Merge)',
+    label: 'Gabung PDF',
     shortDesc: 'Satukan beberapa PDF jadi satu',
     badge: 'PDF',
     icon: IconMergePdf,
   },
   {
     path: '/split-pdf',
-    label: 'Pisah PDF (Split)',
+    label: 'Pisah PDF',
     shortDesc: 'Ambil halaman atau pecah file PDF',
     badge: 'PDF',
     icon: IconSplitPdf,
+  },
+  {
+    path: '/compress-pdf',
+    label: 'Kompres PDF',
+    shortDesc: 'Perkecil ukuran file PDF di browser',
+    badge: 'PDF',
+    icon: IconCompressPdf,
   },
 ]
 
@@ -1123,6 +1132,21 @@ function TinulungAppShell() {
           <h3>Pisahkan Halaman PDF</h3>
           <p>Ambil rentang halaman tertentu atau pecah setiap halaman menjadi file PDF terpisah.</p>
         </button>
+
+        <button
+          type="button"
+          className="quick-feature-card"
+          onClick={() => navigate('/compress-pdf')}
+        >
+          <div className="qf-top">
+            <span className="qf-number">KOMPRES PDF</span>
+            <span className="qf-arrow">
+              <IconArrowUpRight size={14} />
+            </span>
+          </div>
+          <h3>Perkecil Ukuran PDF</h3>
+          <p>Pilih berkas PDF lalu atur tingkat kompresi untuk memangkas ukuran file di browser.</p>
+        </button>
       </div>
     </section>
   )
@@ -1230,6 +1254,7 @@ function TinulungAppShell() {
           <Route path="/" element={homeExtractionPage} />
           <Route path="/merge-pdf" element={<MergePdfPage />} />
           <Route path="/split-pdf" element={<SplitPdfPage />} />
+          <Route path="/compress-pdf" element={<CompressPdfPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/tentang" element={<AboutPage />} />
           {LEGAL_PAGES_META.map((page) => (
@@ -1250,7 +1275,7 @@ function TinulungAppShell() {
                 <h2>Kerjaan Beres Tanpa Ribet</h2>
               </div>
               <p>
-                Tanya dokumen, gabung &amp; pisah PDF, tarik tabel dari link web, atau rapikan chat orderan dalam sekali klik.
+                Tanya dokumen, gabung, pisah &amp; kompres PDF, tarik tabel dari link web, atau rapikan chat orderan dalam sekali klik.
               </p>
             </div>
 

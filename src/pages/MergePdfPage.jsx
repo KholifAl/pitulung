@@ -131,6 +131,9 @@ export default function MergePdfPage() {
       <h1 className="editorial-hero-title">
         Gabung Beberapa PDF
       </h1>
+      <p className="editorial-hero-subtitle">
+        Gabung beberapa dokumen PDF jadi satu
+      </p>
 
       {/* CENTRAL WORKSPACE CARD */}
       <div

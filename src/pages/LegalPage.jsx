@@ -21,7 +21,7 @@ export const LEGAL_PAGES_META = [
     subtitle:
       'Komitmen Tinulung dalam menjaga kerahasiaan dokumen, berkas PDF, dan data yang kamu proses di browser maupun melalui integrasi AI.',
     highlights: [
-      'Alat Gabung PDF & Pisah PDF bekerja 100% lokal di browser perangkatmu tanpa pernah diunggah ke server.',
+      'Alat Gabung PDF, Pisah PDF & Kompres PDF bekerja 100% lokal di browser perangkatmu tanpa pernah diunggah ke server.',
       'Mode Instan memproses ekstraksi teks & tabel secara langsung tanpa menyimpan dokumenmu di database.',
       'API Key pribadi hanya disimpan sementara di memori sesi tab (sessionStorage) dan otomatis terhapus saat tab ditutup.',
     ],
@@ -41,7 +41,7 @@ export const LEGAL_PAGES_META = [
           'Pemrosesan data di Tinulung terbagi menjadi tiga mekanisme sesuai fitur yang kamu gunakan:',
         ],
         bullets: [
-          'Alat PDF Client-Side (Gabung PDF & Pisah PDF): Seluruh proses penggabungan dan pemisahan halaman PDF dijalankan 100% di dalam browser perangkatmu (menggunakan pustaka WebAssembly/JavaScript lokal). Berkas PDF tidak pernah dikirim, diunggah, atau disimpan di server Tinulung.',
+          'Alat PDF Client-Side (Gabung PDF, Pisah PDF & Kompres PDF): Seluruh proses penggabungan, pemisahan halaman, dan kompresi ukuran PDF dijalankan 100% di dalam browser perangkatmu (menggunakan pustaka WebAssembly/JavaScript lokal). Berkas PDF tidak pernah dikirim, diunggah, atau disimpan di server Tinulung.',
           'Mode Instan / Parser Lokal (Tanya & Ekstrak Data): Ketika kamu memilih mesin pemroses "Mode Instan (Tanpa AI)", pembacaan dokumen dan ekstraksi tabel dilakukan secara instan tanpa meneruskan isi dokumen ke penyedia model AI pihak ketiga.',
           'Mode Integrasi AI Eksternal (OpenClaw, OpenRouter, Groq, Gemini, OpenAI, dll.): Jika kamu mengaktifkan mesin AI, potongan teks atau pertanyaan yang relevan akan diteruskan secara terenkripsi (HTTPS) ke penyedia AI pilihanmu semata-mata untuk menghasilkan jawaban atau tabel ekstraksi.',
         ],
@@ -138,7 +138,7 @@ export const LEGAL_PAGES_META = [
   {
     slug: 'cookies',
     path: '/cookies',
-    title: 'Kebijakan Cookie & Penyimpanan Lokal',
+    title: 'Kebijakan Cookie & Penyimpanan',
     shortLabel: 'Kebijakan Cookie',
     badge: 'COOKIE & PENYIMPANAN BROWSER',
     updatedAt: '27 Oktober 2026',

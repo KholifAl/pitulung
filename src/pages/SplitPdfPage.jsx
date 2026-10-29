@@ -44,15 +44,11 @@ export default function SplitPdfPage() {
       const info = await inspectPdfFile(file)
       setPdfDocInfo(info)
       setSplitResult(null)
-      if (!rangeInput.trim()) {
-        const defaultRange =
-          info.pageCount >= 3
-            ? `1-2, ${info.pageCount}`
-            : info.pageCount === 2
-              ? '1'
-              : '1'
-        setRangeInput(defaultRange)
-      }
+      const defaultRange =
+        info.pageCount >= 3
+          ? `1-2, ${info.pageCount}`
+          : '1'
+      setRangeInput(defaultRange)
     } catch (err) {
       setErrorMsg(err.message || 'Gagal membaca berkas PDF.')
     } finally {
@@ -61,10 +57,22 @@ export default function SplitPdfPage() {
     }
   }
 
+  const handleClearFile = () => {
+    setPdfDocInfo(null)
+    setSplitResult(null)
+    setErrorMsg('')
+    setRangeInput('')
+  }
+
   const handleSplitNow = async (e) => {
     if (e) e.preventDefault()
     if (!pdfDocInfo?.file) {
-      setErrorMsg('Unggah 1 berkas PDF utama terlebih dahulu.')
+      setErrorMsg('Unggah berkas PDF terlebih dahulu.')
+      return
+    }
+
+    if (splitMode === 'range' && (!rangePreview || rangePreview.error || rangePreview.pages.length === 0)) {
+      setErrorMsg(rangePreview?.error || 'Tentukan rentang halaman yang valid terlebih dahulu.')
       return
     }
 
@@ -119,11 +127,11 @@ export default function SplitPdfPage() {
   return (
     <section className="clean-hero-section">
       <h1 className="editorial-hero-title">
-        Pisahkan halaman PDF sesuai kebutuhanmu
+        Pisahkan halaman PDF
       </h1>
 
       <p className="editorial-hero-subtitle">
-        Ambil halaman tertentu atau pecah berkas menjadi file terpisah tanpa ribet.
+        Pecah berkas menjadi file terpisah
       </p>
 
       {/* CENTRAL WORKSPACE CARD */}
@@ -153,248 +161,258 @@ export default function SplitPdfPage() {
           }}
         />
 
-        {/* DROPZONE ATAU BANNER BERKAS AKTIF */}
-        {pdfDocInfo ? (
-          <div className="workspace-doc-bar">
-            <div className="active-doc-banner">
-              <div className="active-doc-info">
-                <span className="active-doc-icon">
-                  <IconFileText size={16} />
+        {/* JIKA BELUM ADA FILE: TAMPILKAN HANYA DROPZONE & PRIVASI (SEPERTI MERGE) */}
+        {!pdfDocInfo ? (
+          <>
+            <div
+              className="pdf-dropzone-area"
+              role="button"
+              tabIndex={0}
+              onClick={() => fileInputRef.current?.click()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  fileInputRef.current?.click()
+                }
+              }}
+            >
+              <div className="pdf-dropzone-icon">
+                <IconSplitPdf size={24} />
+              </div>
+              <div className="pdf-dropzone-text">
+                <strong>Tarik &amp; lepas 1 berkas PDF ke sini</strong>
+                <span>atau klik untuk memilih dokumen PDF dari perangkatmu</span>
+              </div>
+              <span className="pdf-dropzone-pill">
+                <IconPlus size={13} />
+                <span>Pilih File PDF</span>
+              </span>
+            </div>
+
+            <div className="pdf-action-bar">
+              <div className="pdf-action-summary">
+                <span className="pdf-privacy-badge">
+                  <IconShield size={14} />
+                  <span>100% Lokal di Browser • Privasi Terjaga</span>
                 </span>
-                <div className="active-doc-text">
-                  <div className="active-doc-title-row">
-                    <strong className="active-doc-filename" title={pdfDocInfo.name}>
-                      {truncateFileName(pdfDocInfo.name, 34)}
-                    </strong>
-                    <span className="active-doc-tag">
-                      {pdfDocInfo.pageCount} Halaman
-                    </span>
-                    <span className="pdf-file-size">
-                      {formatFileSize(pdfDocInfo.size)}
-                    </span>
-                    <span
-                      className="active-doc-verified"
-                      title="Siap Dipisah"
-                      aria-label="Siap Dipisah"
-                    >
-                      <IconCheck size={12} />
-                    </span>
-                  </div>
-                  <div className="active-doc-questions">
-                    <span>Pilih cepat:</span>
-                    <button
-                      type="button"
-                      className="doc-quick-chip"
-                      onClick={() => {
-                        setSplitMode('range')
-                        setRangeInput('1')
-                      }}
-                    >
-                      Halaman 1 Saja
-                    </button>
-                    {pdfDocInfo.pageCount >= 3 && (
+              </div>
+            </div>
+          </>
+        ) : (
+          /* JIKA FILE SUDAH DIUNGGAH: TAMPILKAN BANNER FILE, PENGATURAN, DAN TOMBOL SPLIT */
+          <form onSubmit={handleSplitNow}>
+            <div className="workspace-doc-bar">
+              <div className="active-doc-banner">
+                <div className="active-doc-info">
+                  <span className="active-doc-icon">
+                    <IconFileText size={16} />
+                  </span>
+                  <div className="active-doc-text">
+                    <div className="active-doc-title-row">
+                      <strong className="active-doc-filename" title={pdfDocInfo.name}>
+                        {truncateFileName(pdfDocInfo.name, 34)}
+                      </strong>
+                      <span className="active-doc-tag">
+                        {pdfDocInfo.pageCount} Halaman
+                      </span>
+                      <span className="pdf-file-size">
+                        {formatFileSize(pdfDocInfo.size)}
+                      </span>
+                      <span
+                        className="active-doc-verified"
+                        title="Siap Dipisah"
+                        aria-label="Siap Dipisah"
+                      >
+                        <IconCheck size={12} />
+                      </span>
+                    </div>
+                    <div className="active-doc-questions">
+                      <span>Pilih cepat:</span>
                       <button
                         type="button"
                         className="doc-quick-chip"
                         onClick={() => {
                           setSplitMode('range')
-                          setRangeInput(`1-2, ${pdfDocInfo.pageCount}`)
+                          setRangeInput('1')
                         }}
                       >
-                        Hal. 1-2 &amp; Terakhir ({pdfDocInfo.pageCount})
+                        Halaman 1 Saja
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      className="doc-quick-chip"
-                      onClick={() => setSplitMode('all')}
-                    >
-                      Semua Halaman ({pdfDocInfo.pageCount} File)
-                    </button>
+                      {pdfDocInfo.pageCount >= 3 && (
+                        <button
+                          type="button"
+                          className="doc-quick-chip"
+                          onClick={() => {
+                            setSplitMode('range')
+                            setRangeInput(`1-2, ${pdfDocInfo.pageCount}`)
+                          }}
+                        >
+                          Hal. 1-2 &amp; Terakhir ({pdfDocInfo.pageCount})
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="doc-quick-chip"
+                        onClick={() => setSplitMode('all')}
+                      >
+                        Semua Halaman ({pdfDocInfo.pageCount} File)
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="active-doc-actions">
+                <div className="active-doc-actions">
+                  <button
+                    type="button"
+                    className="doc-action-btn"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isBusy}
+                  >
+                    <IconUpload size={13} />
+                    <span>Ganti</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="doc-remove-btn"
+                    onClick={handleClearFile}
+                    disabled={isBusy}
+                    title="Hapus dokumen"
+                  >
+                    <IconClose size={12} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* PILIHAN MODE PISAH (OPSI A & OPSI B) */}
+            <div className="pdf-split-mode-section">
+              <span className="pdf-mode-label">Pilih Mode Pemisahan Halaman:</span>
+              <div className="pdf-split-mode-grid" role="radiogroup" aria-label="Mode pisah PDF">
                 <button
                   type="button"
-                  className="doc-action-btn"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isBusy}
-                >
-                  <IconUpload size={13} />
-                  <span>Ganti</span>
-                </button>
-                <button
-                  type="button"
-                  className="doc-remove-btn"
+                  role="radio"
+                  aria-checked={splitMode === 'range'}
+                  className={`pdf-mode-card ${splitMode === 'range' ? 'is-active' : ''}`}
                   onClick={() => {
-                    setPdfDocInfo(null)
+                    setSplitMode('range')
                     setSplitResult(null)
-                    setErrorMsg('')
                   }}
-                  disabled={isBusy}
-                  title="Hapus dokumen"
                 >
-                  <IconClose size={12} />
+                  <div className="pdf-mode-card-top">
+                    <strong>Rentang Halaman Kustom</strong>
+                    <span className="pdf-mode-radio-dot" />
+                  </div>
+                  <span>
+                    Ambil halaman tertentu sesuai urutan yang kamu ketik (misal: <code>1-3, 5, 8-10</code>).
+                  </span>
                 </button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div
-            className="pdf-dropzone-area"
-            role="button"
-            tabIndex={0}
-            onClick={() => fileInputRef.current?.click()}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                fileInputRef.current?.click()
-              }
-            }}
-          >
-            <div className="pdf-dropzone-icon">
-              <IconSplitPdf size={24} />
-            </div>
-            <div className="pdf-dropzone-text">
-              <strong>Tarik &amp; lepas 1 berkas PDF utama ke sini</strong>
-              <span>atau klik untuk memilih dokumen PDF dari perangkatmu</span>
-            </div>
-            <span className="pdf-dropzone-pill">
-              <IconPlus size={13} />
-              <span>Pilih File PDF</span>
-            </span>
-          </div>
-        )}
 
-        {/* PILIHAN MODE PISAH (OPSI A & OPSI B) */}
-        <div className="pdf-split-mode-section">
-          <span className="pdf-mode-label">Pilih Mode Pemisahan Halaman:</span>
-          <div className="pdf-split-mode-grid" role="radiogroup" aria-label="Mode pisah PDF">
-            <button
-              type="button"
-              role="radio"
-              aria-checked={splitMode === 'range'}
-              className={`pdf-mode-card ${splitMode === 'range' ? 'is-active' : ''}`}
-              onClick={() => {
-                setSplitMode('range')
-                setSplitResult(null)
-              }}
-            >
-              <div className="pdf-mode-card-top">
-                <strong>Rentang Halaman Kustom</strong>
-                <span className="pdf-mode-radio-dot" />
-              </div>
-              <span>
-                Ambil halaman tertentu sesuai urutan yang kamu ketik (misal: <code>1-3, 5, 8-10</code>).
-              </span>
-            </button>
-
-            <button
-              type="button"
-              role="radio"
-              aria-checked={splitMode === 'all'}
-              className={`pdf-mode-card ${splitMode === 'all' ? 'is-active' : ''}`}
-              onClick={() => {
-                setSplitMode('all')
-                setSplitResult(null)
-              }}
-            >
-              <div className="pdf-mode-card-top">
-                <strong>Pisah Semua Halaman Terpisah</strong>
-                <span className="pdf-mode-radio-dot" />
-              </div>
-              <span>
-                Pecah setiap halaman menjadi file PDF mandiri (bisa diunduh satuan atau bundel <code>.zip</code>).
-              </span>
-            </button>
-          </div>
-        </div>
-
-        {/* FORM INPUT RENTANG & TOMBOL AKSI UTAMA */}
-        <form className="pdf-split-action-form" onSubmit={handleSplitNow}>
-          {splitMode === 'range' ? (
-            <div className="clean-input-box pdf-range-input-box">
-              <input
-                ref={rangeInputRef}
-                type="text"
-                className="clean-text-input"
-                placeholder={
-                  pdfDocInfo
-                    ? `Ketik rentang halaman (1 s/d ${pdfDocInfo.pageCount}), misal: 1-3, 5, 8-10`
-                    : 'Ketik rentang halaman kustom (misal: 1-3, 5, 8-10)...'
-                }
-                value={rangeInput}
-                onChange={(e) => {
-                  setRangeInput(e.target.value)
-                  setErrorMsg('')
-                }}
-                aria-label="Rentang Halaman Kustom"
-              />
-              {rangeInput && (
                 <button
                   type="button"
-                  className="clean-clear-btn"
+                  role="radio"
+                  aria-checked={splitMode === 'all'}
+                  className={`pdf-mode-card ${splitMode === 'all' ? 'is-active' : ''}`}
                   onClick={() => {
-                    setRangeInput('')
-                    rangeInputRef.current?.focus()
+                    setSplitMode('all')
+                    setSplitResult(null)
                   }}
-                  title="Bersihkan rentang"
                 >
-                  <IconClose size={12} />
+                  <div className="pdf-mode-card-top">
+                    <strong>Pisah Semua Halaman Terpisah</strong>
+                    <span className="pdf-mode-radio-dot" />
+                  </div>
+                  <span>
+                    Pecah setiap halaman menjadi file PDF mandiri (bisa diunduh satuan atau bundel <code>.zip</code>).
+                  </span>
                 </button>
-              )}
+              </div>
             </div>
-          ) : (
-            <div className="pdf-all-pages-summary-box">
-              <IconSplitPdf size={16} />
-              <span>
-                {pdfDocInfo
-                  ? `Seluruh ${pdfDocInfo.pageCount} halaman dari "${truncateFileName(pdfDocInfo.name, 26)}" akan dipecah menjadi ${pdfDocInfo.pageCount} file PDF terpisah.`
-                  : 'Setiap halaman dalam dokumen akan dipecah menjadi file PDF masing-masing secara otomatis.'}
-              </span>
-            </div>
-          )}
 
-          <button
-            type="submit"
-            className="clean-submit-btn pdf-submit-btn"
-            disabled={isBusy || !pdfDocInfo}
-          >
-            <span>
-              {isSplitting ? 'Memisahkan PDF...' : 'Pisahkan PDF Sekarang'}
-            </span>
-            <span className="submit-arrow-circle">
-              <IconArrowUpRight size={16} />
-            </span>
-          </button>
-        </form>
+            {/* FORM INPUT RENTANG ATAU RINGKASAN SEMUA HALAMAN */}
+            {splitMode === 'range' ? (
+              <div className="pdf-range-input-wrapper">
+                <div className="clean-input-box">
+                  <input
+                    ref={rangeInputRef}
+                    type="text"
+                    className="clean-text-input"
+                    placeholder={`Ketik rentang halaman (1 s/d ${pdfDocInfo.pageCount}), misal: 1-3, 5, 8-10`}
+                    value={rangeInput}
+                    onChange={(e) => {
+                      setRangeInput(e.target.value)
+                      setErrorMsg('')
+                    }}
+                    aria-label="Rentang Halaman Kustom"
+                  />
+                  {rangeInput && (
+                    <button
+                      type="button"
+                      className="clean-clear-btn"
+                      onClick={() => {
+                        setRangeInput('')
+                        rangeInputRef.current?.focus()
+                      }}
+                      title="Bersihkan rentang"
+                    >
+                      <IconClose size={12} />
+                    </button>
+                  )}
+                </div>
 
-        {/* INFO PREVIEW RENTANG HALAMAN REAL-TIME */}
-        {pdfDocInfo && splitMode === 'range' && rangePreview && (
-          <div
-            className={`pdf-range-preview-hint ${
-              rangePreview.error ? 'is-invalid' : 'is-valid'
-            }`}
-          >
-            {rangePreview.error ? (
-              <span>{rangePreview.error}</span>
+                {rangePreview && (
+                  <div
+                    className={`pdf-range-preview-hint ${
+                      rangePreview.error ? 'is-invalid' : 'is-valid'
+                    }`}
+                  >
+                    {rangePreview.error ? (
+                      <span>{rangePreview.error}</span>
+                    ) : (
+                      <span>
+                        Akan mengekstrak <strong>{rangePreview.pages.length} halaman</strong> (Halaman:{' '}
+                        {rangePreview.pages.join(', ')}) dari total {pdfDocInfo.pageCount} halaman.
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
             ) : (
-              <span>
-                Akan mengekstrak <strong>{rangePreview.pages.length} halaman</strong> (Halaman:{' '}
-                {rangePreview.pages.join(', ')}) dari total {pdfDocInfo.pageCount} halaman.
-              </span>
+              <div className="pdf-all-pages-summary-box">
+                <IconSplitPdf size={16} />
+                <span>
+                  Seluruh {pdfDocInfo.pageCount} halaman dari "{truncateFileName(pdfDocInfo.name, 26)}" akan dipecah menjadi {pdfDocInfo.pageCount} file PDF terpisah.
+                </span>
+              </div>
             )}
-          </div>
-        )}
 
-        <div className="pdf-action-bar" style={{ marginTop: '14px' }}>
-          <span className="pdf-privacy-badge">
-            <IconShield size={14} />
-            <span>100% Lokal di Browser • Tanpa Upload Server</span>
-          </span>
-        </div>
+            {/* PRIMARY ACTION ROW: PRIVASI DI KIRI, TOMBOL SPLIT DI KANAN */}
+            <div className="pdf-action-bar" style={{ marginTop: '18px' }}>
+              <div className="pdf-action-summary">
+                <span className="pdf-privacy-badge">
+                  <IconShield size={14} />
+                  <span>100% Lokal di Browser • Privasi Terjaga</span>
+                </span>
+              </div>
+
+              <button
+                type="submit"
+                className="clean-submit-btn pdf-submit-btn"
+                disabled={
+                  isBusy ||
+                  (splitMode === 'range' &&
+                    (!rangePreview || rangePreview.error || rangePreview.pages.length === 0))
+                }
+              >
+                <span>
+                  {isSplitting ? 'Memisahkan PDF...' : 'Pisahkan PDF Sekarang'}
+                </span>
+                <span className="submit-arrow-circle">
+                  <IconArrowUpRight size={16} />
+                </span>
+              </button>
+            </div>
+          </form>
+        )}
 
         {errorMsg && (
           <div className="clean-error-banner" role="alert">

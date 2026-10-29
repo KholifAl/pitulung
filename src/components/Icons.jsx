@@ -304,6 +304,27 @@ export function IconSplitPdf({ size = 15 }) {
   )
 }
 
+export function IconCompressPdf({ size = 15 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="6" y="3" width="12" height="18" rx="2" stroke="currentColor" strokeWidth="1.9" />
+      <path
+        d="M9.5 8.5L12 11L14.5 8.5M9.5 15.5L12 13L14.5 15.5"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M9 12H15"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
 export function IconPlus({ size = 14 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
