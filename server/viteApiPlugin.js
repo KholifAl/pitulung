@@ -5,9 +5,9 @@ import { createAiMiddlewares } from './aiProxy.js'
 import { extractTextFromPdfBuffer } from './docParser.js'
 import { parseWebpageHtml } from './webExtractor.js'
 
-export function pitulungServerPlugin() {
+export function tinulungServerPlugin() {
   return {
-    name: 'pitulung-api-middleware',
+    name: 'tinulung-api-middleware',
     configureServer(server) {
       const mode = server.config.mode || 'development'
       const env = { ...process.env, ...loadEnv(mode, process.cwd(), '') }

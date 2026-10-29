@@ -19,7 +19,7 @@ export const LEGAL_PAGES_META = [
     badge: 'PRIVASI & PELINDUNGAN DATA',
     updatedAt: '27 Oktober 2026',
     subtitle:
-      'Komitmen Pitulung dalam menjaga kerahasiaan dokumen, berkas PDF, dan data yang kamu proses di browser maupun melalui integrasi AI.',
+      'Komitmen Tinulung dalam menjaga kerahasiaan dokumen, berkas PDF, dan data yang kamu proses di browser maupun melalui integrasi AI.',
     highlights: [
       'Alat Gabung PDF & Pisah PDF bekerja 100% lokal di browser perangkatmu tanpa pernah diunggah ke server.',
       'Mode Instan memproses ekstraksi teks & tabel secara langsung tanpa menyimpan dokumenmu di database.',
@@ -28,20 +28,20 @@ export const LEGAL_PAGES_META = [
     sections: [
       {
         number: '01',
-        heading: 'Prinsip Utama Privasi di Pitulung',
+        heading: 'Prinsip Utama Privasi di Tinulung',
         paragraphs: [
-          'Pitulung ("Kami") dirancang dengan prinsip Privacy-by-Design. Kami memahami bahwa dokumen yang kamu kelola, seperti Rencana Anggaran Biaya (RAB), kontrak kerja, nota transaksi, hingga rekap pesanan pelanggan, bersifat penting dan rahasia.',
-          'Kebijakan Privasi ini disusun selaras dengan Undang-Undang Republik Indonesia Nomor 27 Tahun 2022 tentang Pelindungan Data Pribadi (UU PDP) untuk menjelaskan secara transparan bagaimana data diproses saat kamu menggunakan layanan Pitulung.',
+          'Tinulung ("Kami") dirancang dengan prinsip Privacy-by-Design. Kami memahami bahwa dokumen yang kamu kelola, seperti Rencana Anggaran Biaya (RAB), kontrak kerja, nota transaksi, hingga rekap pesanan pelanggan, bersifat penting dan rahasia.',
+          'Kebijakan Privasi ini disusun selaras dengan Undang-Undang Republik Indonesia Nomor 27 Tahun 2022 tentang Pelindungan Data Pribadi (UU PDP) untuk menjelaskan secara transparan bagaimana data diproses saat kamu menggunakan layanan Tinulung.',
         ],
       },
       {
         number: '02',
         heading: 'Cara Kami Memproses Dokumen & Berkas Kamu',
         paragraphs: [
-          'Pemrosesan data di Pitulung terbagi menjadi tiga mekanisme sesuai fitur yang kamu gunakan:',
+          'Pemrosesan data di Tinulung terbagi menjadi tiga mekanisme sesuai fitur yang kamu gunakan:',
         ],
         bullets: [
-          'Alat PDF Client-Side (Gabung PDF & Pisah PDF): Seluruh proses penggabungan dan pemisahan halaman PDF dijalankan 100% di dalam browser perangkatmu (menggunakan pustaka WebAssembly/JavaScript lokal). Berkas PDF tidak pernah dikirim, diunggah, atau disimpan di server Pitulung.',
+          'Alat PDF Client-Side (Gabung PDF & Pisah PDF): Seluruh proses penggabungan dan pemisahan halaman PDF dijalankan 100% di dalam browser perangkatmu (menggunakan pustaka WebAssembly/JavaScript lokal). Berkas PDF tidak pernah dikirim, diunggah, atau disimpan di server Tinulung.',
           'Mode Instan / Parser Lokal (Tanya & Ekstrak Data): Ketika kamu memilih mesin pemroses "Mode Instan (Tanpa AI)", pembacaan dokumen dan ekstraksi tabel dilakukan secara instan tanpa meneruskan isi dokumen ke penyedia model AI pihak ketiga.',
           'Mode Integrasi AI Eksternal (OpenClaw, OpenRouter, Groq, Gemini, OpenAI, dll.): Jika kamu mengaktifkan mesin AI, potongan teks atau pertanyaan yang relevan akan diteruskan secara terenkripsi (HTTPS) ke penyedia AI pilihanmu semata-mata untuk menghasilkan jawaban atau tabel ekstraksi.',
         ],
@@ -84,9 +84,9 @@ export const LEGAL_PAGES_META = [
     badge: 'KETENTUAN PENGGUNAAN LAYANAN',
     updatedAt: '27 Oktober 2026',
     subtitle:
-      'Aturan penggunaan layanan, batasan pemakaian wajar, hak kekayaan intelektual, serta ketentuan dukungan donasi sukarela di Pitulung.',
+      'Aturan penggunaan layanan, batasan pemakaian wajar, hak kekayaan intelektual, serta ketentuan dukungan donasi sukarela di Tinulung.',
     highlights: [
-      'Pitulung dapat digunakan secara gratis untuk kebutuhan personal, akademik, UMKM, maupun pekerjaan profesional.',
+      'Tinulung dapat digunakan secara gratis untuk kebutuhan personal, akademik, UMKM, maupun pekerjaan profesional.',
       'Pengguna bertanggung jawab penuh atas legalitas dan hak akses dokumen yang diunggah atau diekstrak.',
       'Dukungan melalui fitur "Traktir Cilok / Patungan Server" via QRIS bersifat sukarela dan tidak mengikat.',
     ],
@@ -95,14 +95,14 @@ export const LEGAL_PAGES_META = [
         number: '01',
         heading: 'Penerimaan Syarat & Ketentuan',
         paragraphs: [
-          'Dengan mengakses dan menggunakan situs web serta seluruh alat bantu digital Pitulung, kamu menyatakan telah membaca, memahami, dan menyetujui Syarat dan Ketentuan ini. Apabila kamu tidak menyetujui bagian mana pun dari ketentuan ini, mohon untuk menghentikan penggunaan layanan.',
+          'Dengan mengakses dan menggunakan situs web serta seluruh alat bantu digital Tinulung, kamu menyatakan telah membaca, memahami, dan menyetujui Syarat dan Ketentuan ini. Apabila kamu tidak menyetujui bagian mana pun dari ketentuan ini, mohon untuk menghentikan penggunaan layanan.',
         ],
       },
       {
         number: '02',
         heading: 'Penggunaan yang Diperbolehkan & Larangan',
         paragraphs: [
-          'Pitulung disediakan sebagai alat bantu produktivitas digital. Dalam menggunakan layanan kami, kamu setuju untuk tidak melakukan tindakan berikut:',
+          'Tinulung disediakan sebagai alat bantu produktivitas digital. Dalam menggunakan layanan kami, kamu setuju untuk tidak melakukan tindakan berikut:',
         ],
         bullets: [
           'Mengunggah atau memproses dokumen yang melanggar hukum, mengandung malware, atau melanggar hak cipta/kerahasiaan pihak lain tanpa izin.',
@@ -115,14 +115,14 @@ export const LEGAL_PAGES_META = [
         heading: 'Hak Kekayaan Intelektual & Kepemilikan Dokumen',
         paragraphs: [
           'Hak kepemilikan atas seluruh berkas PDF, dokumen, teks, dan data yang kamu unggah maupun hasil ekstraksi (CSV, JSON, PDF gabungan/pisahan) sepenuhnya tetap menjadi milikmu.',
-          'Sementara itu, merek, logo, desain antarmuka, dan kode sumber aplikasi Pitulung dilindungi oleh hak kekayaan intelektual yang berlaku.',
+          'Sementara itu, merek, logo, desain antarmuka, dan kode sumber aplikasi Tinulung dilindungi oleh hak kekayaan intelektual yang berlaku.',
         ],
       },
       {
         number: '04',
         heading: 'Ketersediaan Layanan & Kuota Publik',
         paragraphs: [
-          'Kami berupaya menjaga agar Pitulung selalu dapat diakses 24/7. Namun, fitur yang menggunakan kuota AI publik bersama memiliki batas pemakaian wajar harian. Ketika kuota publik sedang penuh, kamu tetap dapat menggunakan Mode Instan (Parser Lokal), alat PDF, atau menghubungkan API Key pribadimu sendiri.',
+          'Kami berupaya menjaga agar Tinulung selalu dapat diakses 24/7. Namun, fitur yang menggunakan kuota AI publik bersama memiliki batas pemakaian wajar harian. Ketika kuota publik sedang penuh, kamu tetap dapat menggunakan Mode Instan (Parser Lokal), alat PDF, atau menghubungkan API Key pribadimu sendiri.',
         ],
       },
       {
@@ -143,9 +143,9 @@ export const LEGAL_PAGES_META = [
     badge: 'COOKIE & PENYIMPANAN BROWSER',
     updatedAt: '27 Oktober 2026',
     subtitle:
-      'Penjelasan transparan mengenai bagaimana Pitulung menggunakan penyimpanan lokal browser (LocalStorage & SessionStorage) tanpa cookie pelacak iklan.',
+      'Penjelasan transparan mengenai bagaimana Tinulung menggunakan penyimpanan lokal browser (LocalStorage & SessionStorage) tanpa cookie pelacak iklan.',
     highlights: [
-      'Pitulung TIDAK menggunakan cookie pelacak iklan pihak ketiga (zero ad-trackers).',
+      'Tinulung TIDAK menggunakan cookie pelacak iklan pihak ketiga (zero ad-trackers).',
       'Kami hanya menggunakan LocalStorage & SessionStorage bawaan browser untuk menyimpan preferensi alatmu.',
       'Kamu dapat menghapus penyimpanan lokal kapan saja langsung dari menu Pengaturan AI atau pengaturan browser.',
     ],
@@ -153,13 +153,13 @@ export const LEGAL_PAGES_META = [
       columns: ['Nama Kunci Penyimpanan', 'Jenis', 'Tujuan Penggunaan', 'Masa Berlaku'],
       rows: [
         [
-          'pitulung_engine_config',
+          'tinulung_engine_config',
           'localStorage',
           'Menyimpan pilihan mesin pemroses (mis. Mode Instan, OpenClaw, Gemini) dan nama model AI pilihanmu.',
           'Tersimpan hingga di-reset pengguna',
         ],
         [
-          'pitulung_user_api_key',
+          'tinulung_user_api_key',
           'sessionStorage',
           'Menyimpan API Key pribadi secara sementara agar tidak perlu diketik ulang selama tab masih aktif.',
           'Otomatis hilang saat tab ditutup',
@@ -169,9 +169,9 @@ export const LEGAL_PAGES_META = [
     sections: [
       {
         number: '01',
-        heading: 'Apakah Pitulung Menggunakan Cookie?',
+        heading: 'Apakah Tinulung Menggunakan Cookie?',
         paragraphs: [
-          'Berbeda dengan banyak situs web yang memasang puluhan cookie pelacak untuk menargetkan iklan, Pitulung tidak memasang cookie pelacakan perilaku (behavioral tracking cookies) maupun piksel periklanan pihak ketiga.',
+          'Berbeda dengan banyak situs web yang memasang puluhan cookie pelacak untuk menargetkan iklan, Tinulung tidak memasang cookie pelacakan perilaku (behavioral tracking cookies) maupun piksel periklanan pihak ketiga.',
           'Sebagai gantinya, kami memanfaatkan teknologi Web Storage standar pada browser modern (yaitu localStorage dan sessionStorage) yang bekerja murni di sisi perangkatmu untuk menjaga kenyamanan penggunaan aplikasi.',
         ],
       },
@@ -179,7 +179,7 @@ export const LEGAL_PAGES_META = [
         number: '02',
         heading: 'Rincian Penyimpanan Lokal yang Digunakan',
         paragraphs: [
-          'Berikut adalah daftar lengkap data teknis yang disimpan di browser perangkatmu saat menggunakan Pitulung:',
+          'Berikut adalah daftar lengkap data teknis yang disimpan di browser perangkatmu saat menggunakan Tinulung:',
         ],
       },
       {
@@ -208,14 +208,14 @@ export const LEGAL_PAGES_META = [
     highlights: [
       'Hasil ekstraksi tabel dan jawaban AI disajikan untuk membantu mempercepat pekerjaan, bukan menggantikan verifikasi akhir.',
       'Kami menyediakan fitur "Kutipan Sumber" agar kamu selalu dapat mencocokkan hasil ekstraksi dengan teks asli dokumen.',
-      'Pitulung tidak memberikan nasihat hukum, pajak, maupun keuangan atas isi kontrak atau RAB yang diproses.',
+      'Tinulung tidak memberikan nasihat hukum, pajak, maupun keuangan atas isi kontrak atau RAB yang diproses.',
     ],
     sections: [
       {
         number: '01',
         heading: 'Akurasi Hasil Ekstraksi & Model AI',
         paragraphs: [
-          'Pitulung menggabungkan algoritma ekstraksi dokumen terverifikasi dengan model kecerdasan buatan (AI) untuk membantu merapikan tabel, angka, tanggal, dan rekap pesanan. Meskipun kami merancang sistem verifikasi kutipan sumber untuk meminimalkan kesalahan (halusinasi AI), teknologi otomatis tetap memiliki keterbatasan tergantung kualitas format dokumen asli.',
+          'Tinulung menggabungkan algoritma ekstraksi dokumen terverifikasi dengan model kecerdasan buatan (AI) untuk membantu merapikan tabel, angka, tanggal, dan rekap pesanan. Meskipun kami merancang sistem verifikasi kutipan sumber untuk meminimalkan kesalahan (halusinasi AI), teknologi otomatis tetap memiliki keterbatasan tergantung kualitas format dokumen asli.',
           'Oleh karena itu, pengguna wajib memeriksa dan memverifikasi kembali kesesuaian angka, nominal rupiah, pasal kontrak, maupun rincian pesanan sebelum menggunakannya untuk pengambilan keputusan bisnis, pengiriman barang, atau transaksi keuangan.',
         ],
       },
@@ -223,7 +223,7 @@ export const LEGAL_PAGES_META = [
         number: '02',
         heading: 'Bukan Nasihat Hukum, Keuangan, atau Profesional',
         paragraphs: [
-          'Seluruh ringkasan, jawaban tanya-jawab dokumen, maupun ekstraksi ketentuan denda/kontrak yang dihasilkan oleh Pitulung bersifat informatif sebagai alat bantu pembacaan cepat. Hasil tersebut tidak dapat dianggap sebagai opini hukum, audit keuangan, atau konsultasi profesional.',
+          'Seluruh ringkasan, jawaban tanya-jawab dokumen, maupun ekstraksi ketentuan denda/kontrak yang dihasilkan oleh Tinulung bersifat informatif sebagai alat bantu pembacaan cepat. Hasil tersebut tidak dapat dianggap sebagai opini hukum, audit keuangan, atau konsultasi profesional.',
         ],
       },
       {
@@ -237,7 +237,7 @@ export const LEGAL_PAGES_META = [
         number: '04',
         heading: 'Layanan Sebagaimana Adanya ("As-Is")',
         paragraphs: [
-          'Pitulung disediakan dalam kondisi "sebagaimana adanya" (as-is) tanpa jaminan tersurat maupun tersirat. Pengembang Pitulung tidak bertanggung jawab atas kerugian langsung maupun tidak langsung yang timbul akibat kesalahan interpretasi data, keterlambatan jaringan, atau kegagalan perangkat saat memproses dokumen.',
+          'Tinulung disediakan dalam kondisi "sebagaimana adanya" (as-is) tanpa jaminan tersurat maupun tersirat. Pengembang Tinulung tidak bertanggung jawab atas kerugian langsung maupun tidak langsung yang timbul akibat kesalahan interpretasi data, keterlambatan jaringan, atau kegagalan perangkat saat memproses dokumen.',
         ],
       },
     ],
@@ -249,7 +249,7 @@ export function AboutPage() {
 
   return (
     <section className="clean-hero-section legal-page-section">
-      <h1 className="editorial-hero-title legal-hero-title">Tentang Pitulung</h1>
+      <h1 className="editorial-hero-title legal-hero-title">Tentang Tinulung</h1>
       <p className="editorial-hero-subtitle legal-hero-subtitle">
         Alat bantu digital praktis berbahasa Indonesia yang dibuat agar pekerjaan dokumen, tabel, dan berkas PDF harianmu cepat beres tanpa ribet.
       </p>
@@ -258,7 +258,7 @@ export function AboutPage() {
         <div className="legal-doc-topbar">
           <div className="legal-doc-status">
             <span className="legal-updated-date">
-              Pengelola: <strong>Pitulung Digital</strong>
+              Pengelola: <strong>Tinulung Digital</strong>
             </span>
           </div>
 
@@ -272,11 +272,11 @@ export function AboutPage() {
           </button>
         </div>
 
-        {/* INTISARI TENTANG PITULUNG */}
+        {/* INTISARI TENTANG TINULUNG */}
         <div className="legal-highlights-box">
           <div className="legal-highlights-head">
             <IconSparkle size={14} />
-            <strong>Kenapa Pitulung Hadir?</strong>
+            <strong>Kenapa Tinulung Hadir?</strong>
           </div>
           <ul className="legal-highlights-list">
             <li>
@@ -284,7 +284,7 @@ export function AboutPage() {
                 <IconCheck size={12} />
               </span>
               <span>
-                Diambil dari kata bahasa Jawa/Indonesia <strong>&ldquo;Pitulung&rdquo;</strong> yang berarti pertolongan atau bantuan yang tulus.
+                Diambil dari kata bahasa Jawa/Indonesia <strong>&ldquo;Tinulung&rdquo;</strong> yang berarti pertolongan atau bantuan yang tulus.
               </span>
             </li>
             <li>
@@ -369,7 +369,7 @@ export function AboutPage() {
                 Banyak pekerja kantor, pelaku UMKM, admin toko online, hingga mahasiswa sering menghabiskan waktu berjam-jam hanya untuk menyalin tabel dari PDF ke Excel, mengecek pasal di dokumen RAB, atau merekap chat pesanan satu per satu.
               </p>
               <p>
-                Pitulung dibangun agar tetap ringan, bebas dari iklan pop-up yang mengganggu, dan selalu siap membantu mempercepat pekerjaan administrasi harian di berbagai perangkat.
+                Tinulung dibangun agar tetap ringan, bebas dari iklan pop-up yang mengganggu, dan selalu siap membantu mempercepat pekerjaan administrasi harian di berbagai perangkat.
               </p>
             </div>
           </article>
@@ -481,7 +481,7 @@ export default function LegalPage({ pageSlug = 'privacy-policy' }) {
                 )}
 
                 {/* TABEL RINCIAN PENYIMPANAN KHUSUS KEBIJAKAN COOKIE */}
-                {activePage.slug === 'kebijakan-cookie' &&
+                {(activePage.slug === 'cookies' || activePage.slug === 'kebijakan-cookie') &&
                   sec.number === '02' &&
                   activePage.storageTable && (
                     <div className="clean-table-wrapper legal-storage-table">

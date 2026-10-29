@@ -1,4 +1,4 @@
-// Shared stroke SVG icons across Pitulung pages
+// Shared stroke SVG icons across Tinulung pages
 
 export function IconArrowUpRight({ size = 15 }) {
   return (

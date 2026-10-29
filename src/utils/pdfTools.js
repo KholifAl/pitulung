@@ -103,7 +103,7 @@ export async function inspectPdfFile(file) {
 /**
  * Membuat berkas PDF sampel langsung di browser untuk demo cepat
  */
-export async function createSamplePdfFile(title = 'Dokumen-Sampel.pdf', pageCount = 3, subtitle = 'Contoh Dokumen Pitulung') {
+export async function createSamplePdfFile(title = 'Dokumen-Sampel.pdf', pageCount = 3, subtitle = 'Contoh Dokumen Tinulung') {
   const pdfDoc = await PDFDocument.create()
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
   const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica)
@@ -121,7 +121,7 @@ export async function createSamplePdfFile(title = 'Dokumen-Sampel.pdf', pageCoun
       color: rgb(0.39, 0.09, 0.16),
     })
 
-    page.drawText('PITULUNG: DOKUMEN SAMPEL PDF', {
+    page.drawText('TINULUNG: DOKUMEN SAMPEL PDF', {
       x: 62,
       y: height - 78,
       size: 11,

@@ -1,5 +1,5 @@
 /**
- * Proxy AI Pitulung (berjalan di sisi server / Vite middleware)
+ * Proxy AI Tinulung (berjalan di sisi server / Vite middleware)
  *
  * Kenapa lewat server?
  * - API key milik server TIDAK PERNAH dikirim ke browser.

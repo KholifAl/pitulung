@@ -12,13 +12,13 @@ import logoText from './assets/Logo-text.svg'
 import {
   AI_PROVIDERS,
   DEFAULT_ENGINE_CONFIG,
-  PITULUNG_TOOLS,
+  TINULUNG_TOOLS,
   SAMPLE_VERIFIED_DOC,
   checkEngineStatus,
   fetchProviderModels,
   getProviderMeta,
   migrateEngineConfig,
-  processPitulungTask,
+  processTinulungTask,
   readUploadedDocument,
 } from './services/openclawClient'
 import {
@@ -247,7 +247,7 @@ function CleanDropdown({
   )
 }
 
-function PitulungAppShell() {
+function TinulungAppShell() {
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -267,10 +267,10 @@ function PitulungAppShell() {
 
   const [apiConfig, setApiConfig] = useState(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem('pitulung_engine_config') || '{}')
+      const saved = JSON.parse(localStorage.getItem('tinulung_engine_config') || '{}')
       delete saved.apiKey
       delete saved.mode
-      const sessionKey = sessionStorage.getItem('pitulung_user_api_key') || ''
+      const sessionKey = sessionStorage.getItem('tinulung_user_api_key') || ''
       return migrateEngineConfig({ ...DEFAULT_ENGINE_CONFIG, ...saved, apiKey: sessionKey })
     } catch {
       return DEFAULT_ENGINE_CONFIG
@@ -402,7 +402,7 @@ function PitulungAppShell() {
   const handleLoadSampleDoc = () => {
     setUploadedDoc(SAMPLE_VERIFIED_DOC)
     setActiveToolId('dokumen')
-    const sampleQuery = PITULUNG_TOOLS[0].sampleInput
+    const sampleQuery = TINULUNG_TOOLS[0].sampleInput
     const fmt = 'Tanya Jawab & Tabel Terverifikasi'
     setInputValue(sampleQuery)
     setSelectedFormat(fmt)
@@ -414,7 +414,7 @@ function PitulungAppShell() {
     if (location.pathname !== '/') {
       navigate('/')
     }
-    const preset = PITULUNG_TOOLS.find((t) => t.id === toolId) || PITULUNG_TOOLS[0]
+    const preset = TINULUNG_TOOLS.find((t) => t.id === toolId) || TINULUNG_TOOLS[0]
     setActiveToolId(preset.id)
     setInputValue(preset.sampleInput)
     setSelectedFormat(preset.defaultFormat)
@@ -430,7 +430,7 @@ function PitulungAppShell() {
 
   const executeTask = async (customToolId, customInput, customFormat, customDoc) => {
     const toolId = customToolId || activeToolId
-    const preset = PITULUNG_TOOLS.find((t) => t.id === toolId) || PITULUNG_TOOLS[0]
+    const preset = TINULUNG_TOOLS.find((t) => t.id === toolId) || TINULUNG_TOOLS[0]
     const docToUse = customDoc !== undefined ? customDoc : uploadedDoc
     const textToProcess = (customInput ?? inputValue).trim() || preset.sampleInput
     const formatToUse = customFormat || selectedFormat || preset.defaultFormat
@@ -451,7 +451,7 @@ function PitulungAppShell() {
     )
 
     try {
-      const res = await processPitulungTask({
+      const res = await processTinulungTask({
         toolId,
         input: textToProcess,
         format: formatToUse,
@@ -521,7 +521,7 @@ function PitulungAppShell() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.setAttribute('download', `hasil-pitulung.${isJson ? 'json' : 'csv'}`)
+    link.setAttribute('download', `hasil-tinulung.${isJson ? 'json' : 'csv'}`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -531,9 +531,9 @@ function PitulungAppShell() {
   const handleSaveApiConfig = async (e) => {
     e.preventDefault()
     const { apiKey, ...safeConfig } = apiConfig
-    localStorage.setItem('pitulung_engine_config', JSON.stringify(safeConfig))
-    if (apiKey) sessionStorage.setItem('pitulung_user_api_key', apiKey)
-    else sessionStorage.removeItem('pitulung_user_api_key')
+    localStorage.setItem('tinulung_engine_config', JSON.stringify(safeConfig))
+    if (apiKey) sessionStorage.setItem('tinulung_user_api_key', apiKey)
+    else sessionStorage.removeItem('tinulung_user_api_key')
 
     const status = await checkEngineStatus(apiConfig)
     setEngineOnline(status.online)
@@ -552,7 +552,7 @@ function PitulungAppShell() {
   }
 
   const handleResetApiConfig = () => {
-    sessionStorage.removeItem('pitulung_user_api_key')
+    sessionStorage.removeItem('tinulung_user_api_key')
     setApiConfig(DEFAULT_ENGINE_CONFIG)
   }
 
@@ -1128,7 +1128,7 @@ function PitulungAppShell() {
   )
 
   return (
-    <div className="pitulung-clean-app">
+    <div className="tinulung-clean-app">
       <div className="ambient-glow-top" aria-hidden="true" />
 
       <div className="main-container">
@@ -1144,10 +1144,10 @@ function PitulungAppShell() {
                 }
                 window.scrollTo({ top: 0, behavior: 'smooth' })
               }}
-              aria-label="Pitulung"
+              aria-label="Tinulung"
             >
-              <img src={logoImage} alt="Logo Pitulung" className="brand-logo-img" />
-              <img src={logoText} alt="Pitulung" className="brand-logo-text-img" />
+              <img src={logoImage} alt="Logo Tinulung" className="brand-logo-img" />
+              <img src={logoText} alt="Tinulung" className="brand-logo-text-img" />
             </button>
 
             <div className="nav-right-actions">
@@ -1174,7 +1174,7 @@ function PitulungAppShell() {
                 </button>
 
                 {navMenuOpen && (
-                  <div className="nav-tools-menu" role="menu" aria-label="Pilih Alat Bantu Pitulung">
+                  <div className="nav-tools-menu" role="menu" aria-label="Pilih Alat Bantu Tinulung">
                     {NAV_TOOL_ROUTES.map((item) => {
                       const IconComp = item.icon
                       const isActive = location.pathname === item.path
@@ -1524,7 +1524,7 @@ function PitulungAppShell() {
             <div className="footer-brand-copy">
               <img src={logoImage} alt="" className="footer-mini-logo" />
               <span>
-                © 2026 <strong>Pitulung</strong> - Alat bantu digital
+                © 2026 <strong>Tinulung</strong> - Alat bantu digital
               </span>
               <span className="footer-dot-sep" aria-hidden="true">•</span>
               <span className="footer-powered-inline">
@@ -1765,7 +1765,7 @@ function PitulungAppShell() {
           onClick={() => setContactModalOpen(false)}
           role="dialog"
           aria-modal="true"
-          aria-label="Kontak Pitulung"
+          aria-label="Kontak Tinulung"
         >
           <div
             className="clean-modal-box wide-modal contact-modal-box"
@@ -1773,7 +1773,7 @@ function PitulungAppShell() {
           >
             <div className="clean-modal-top">
               <div>
-                <h3>Kontak &amp; Masukan Pitulung</h3>
+                <h3>Kontak &amp; Masukan Tinulung</h3>
               </div>
               <button
                 type="button"
@@ -1796,11 +1796,11 @@ function PitulungAppShell() {
                 if (!contactAgreed) return
                 const email = getProtectedContactEmail()
                 const subject = encodeURIComponent(
-                  `[Pitulung - ${contactCategory}]${contactName.trim() ? ` dari ${contactName.trim()}` : ''}`
+                  `[Tinulung - ${contactCategory}]${contactName.trim() ? ` dari ${contactName.trim()}` : ''}`
                 )
                 const body = encodeURIComponent(
-                  `${contactMessage.trim() || 'Halo tim Pitulung,'}\n\nPengirim: ${
-                    contactName.trim() || 'Pengguna Pitulung'
+                  `${contactMessage.trim() || 'Halo tim Tinulung,'}\n\nPengirim: ${
+                    contactName.trim() || 'Pengguna Tinulung'
                   }\nKategori: ${contactCategory}`
                 )
                 window.location.href = `mailto:${email}?subject=${subject}&body=${body}`
@@ -1865,7 +1865,7 @@ function PitulungAppShell() {
                   >
                     Kebijakan Privasi
                   </Link>{' '}
-                  Pitulung.
+                  Tinulung.
                 </span>
               </label>
 
@@ -1934,7 +1934,7 @@ function PitulungAppShell() {
           onClick={() => setQrisModalOpen(false)}
           role="dialog"
           aria-modal="true"
-          aria-label="QRIS Pitulung"
+          aria-label="QRIS Tinulung"
         >
           <div className="clean-modal-box modal-qris-box" onClick={(e) => e.stopPropagation()}>
             <div className="clean-modal-top">
@@ -2063,7 +2063,7 @@ function PitulungAppShell() {
 function App() {
   return (
     <BrowserRouter>
-      <PitulungAppShell />
+      <TinulungAppShell />
     </BrowserRouter>
   )
 }

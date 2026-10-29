@@ -1,6 +1,6 @@
 
 
-.pitulung-clean-app {
+.tinulung-clean-app {
   min-height: 100vh;
   background-color: var(--bg-white);
   color: var(--text-main);
@@ -81,7 +81,7 @@
 .clean-brand-identity {
   display: inline-flex;
   align-items: center;
-  gap: 11px;
+  gap: 6px;
   text-decoration: none;
   color: var(--text-main);
   background: none;
@@ -89,10 +89,15 @@
   padding: 0;
   cursor: pointer;
   font-family: inherit;
+  transition: gap 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.clean-navbar.is-island .clean-brand-identity {
+  gap: 5px;
 }
 
 .brand-logo-img {
-  height: 36px;
+  height: 31px;
   width: auto;
   display: block;
   object-fit: contain;
@@ -100,19 +105,23 @@
 }
 
 .brand-logo-text-img {
-  height: 24px;
+  height: 23px;
   width: auto;
   display: block;
   object-fit: contain;
-  transition: height 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  transform: translateY(2px);
+  transition:
+    height 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .clean-navbar.is-island .brand-logo-img {
-  height: 27px;
+  height: 24px;
 }
 
 .clean-navbar.is-island .brand-logo-text-img {
-  height: 18px;
+  height: 17.5px;
+  transform: translateY(1.5px);
 }
 
 .nav-right-actions {
@@ -701,7 +710,7 @@
   font-size: 0.9rem;
 }
 
-/* NO BLUE ON HOVER: Smooth warm maroon tint matching the Pitulung theme */
+/* NO BLUE ON HOVER: Smooth warm maroon tint matching the Tinulung theme */
 .clean-dropdown-item:hover,
 .clean-dropdown-item:focus {
   background: var(--bg-tint);
@@ -2282,7 +2291,7 @@
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   color: var(--text-muted);
   font-size: 0.8rem;
 }
@@ -2293,9 +2302,11 @@
 }
 
 .footer-mini-logo {
-  height: 20px;
+  height: 18px;
   width: auto;
   display: block;
+  object-fit: contain;
+  margin-right: -1px;
 }
 
 /* Language UI Switcher (Bottom Right - Same 32px Pill Height as Pengaturan AI) */
@@ -3279,7 +3290,7 @@
     padding: 0 16px 48px;
   }
 
-  /* Navbar Mobile: Hanya ikon logo (tanpa teks Pitulung) + label singkat "Alat" & "Traktir" */
+  /* Navbar Mobile: Hanya ikon logo (tanpa teks Tinulung) + label singkat "Alat" & "Traktir" */
   .navbar-sticky-stage {
     height: 68px;
   }
@@ -3302,11 +3313,11 @@
   }
 
   .brand-logo-img {
-    height: 32px;
+    height: 29px;
   }
 
   .clean-navbar.is-island .brand-logo-img {
-    height: 26px;
+    height: 24px;
   }
 
   .nav-label-full {

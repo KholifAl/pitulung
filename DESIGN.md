@@ -1,10 +1,10 @@
-# DESIGN.md: Pitulung Visual & Structural Direction
+# DESIGN.md: Tinulung Visual & Structural Direction
 
 ## Identity & Purpose
-- **Product:** Pitulung
+- **Product:** Tinulung
 - **Category:** Utilitas dokumen, ekstraksi tabel terverifikasi, dan alat PDF lokal berbahasa Indonesia.
 - **Audience:** Pekerja administrasi, pelaku UMKM, mahasiswa, dan tim operasional yang perlu mengekstrak tabel RAB/kontrak, merapikan pesanan WhatsApp, serta menggabung atau memisah berkas PDF tanpa birokrasi akun.
-- **Design Read:** `Document & PDF utility workspace for Indonesian users (pitulung.my.id), preserving the signature warm maroon + cream rounded-rectangle aesthetic, Fredoka + Plus Jakarta Sans typography, and smooth interactive animations while removing redundant pill badges above headings, nested rounded-rectangle notes inside dropdowns, and double horizontal divider lines, dial ENERGY 3 / RHYTHM 2 / MOTION 2.`
+- **Design Read:** `Document & PDF utility workspace for Indonesian users (tinulung.my.id), preserving the signature warm maroon + cream rounded-rectangle aesthetic, Fredoka + Plus Jakarta Sans typography, and smooth interactive animations while removing redundant pill badges above headings, nested rounded-rectangle notes inside dropdowns, and double horizontal divider lines, dial ENERGY 3 / RHYTHM 2 / MOTION 2.`
 - **Dial:** `ENERGY 3 / RHYTHM 2 / MOTION 2`
 
 ## Color System (R-29: 2 Core Neutrals + 1 Core Ink + 1 Deliberate Accent)
@@ -25,7 +25,7 @@
 ## Typography (R-06)
 - **Display Typeface:** `Fredoka` (Heading H1/H2/H3)
 - **Body & UI Typeface:** `Plus Jakarta Sans`
-- **Reason:** Kombinasi `Fredoka` pada judul ramah khas `pitulung.my.id` dengan `Plus Jakarta Sans` pada kontrol dan tabel data memisahkan hierarki bacaan secara jelas serta menjaga keterbacaan angka rupiah, rincian RAB, dan istilah Bahasa Indonesia.
+- **Reason:** Kombinasi `Fredoka` pada judul ramah khas `tinulung.my.id` dengan `Plus Jakarta Sans` pada kontrol dan tabel data memisahkan hierarki bacaan secara jelas serta menjaga keterbacaan angka rupiah, rincian RAB, dan istilah Bahasa Indonesia.
 - **Hierarchy:** Judul utama mempertahankan aksen panah khas `Mau dibantu [->] apa hari ini?`, namun lencana kapsul deskriptif tambahan di atas H1/H2 dihapus agar tidak menumpuk.
 
 ## Border Radius & Surface Architecture (R-11, R-12)

@@ -1,5 +1,5 @@
 /**
- * Engine Pemroses Pitulung: OpenClaw Document Intelligence & Web/Data Extractor
+ * Engine Pemroses Tinulung: OpenClaw Document Intelligence & Web/Data Extractor
  * Browser memanggil /api/ai/* di server agar API key tidak terekspos di klien.
  */
 
@@ -134,7 +134,7 @@ export const SAMPLE_VERIFIED_DOC = {
   text: `[PASAL 1 - OBJEK KONTRAK & VENDOR]
 Nomor Kontrak: PKS/2026/IV/089
 Tanggal Efektif: 12 Oktober 2026
-Pihak Pertama: PT Pitulung Niaga Digital (Pembeli)
+Pihak Pertama: PT Tinulung Niaga Digital (Pembeli)
 Pihak Kedua: Koperasi Produsen Kopi Gayo Mandiri (Vendor Utama)
 Nilai Total Kontrak: Rp 148.500.000 (Seratus Empat Puluh Delapan Juta Lima Ratus Ribu Rupiah) sudah termasuk PPN 11%.
 
@@ -154,7 +154,7 @@ Termin 3 (Pelunasan 20%): Sebesar Rp 29.700.000 dibayarkan setelah uji kualitas 
 2. Apabila Pihak Kedua terlambat mengirimkan barang melewati batas waktu 25 Oktober 2026, maka dikenakan denda keterlambatan sebesar 0,2% (nol koma dua persen) per hari dari total nilai kontrak, dengan batas maksimal denda 5% dari nilai kontrak.`,
 }
 
-export const PITULUNG_TOOLS = [
+export const TINULUNG_TOOLS = [
   {
     id: 'dokumen',
     badge: 'TANYA DOKUMEN',
@@ -294,7 +294,7 @@ export async function readUploadedDocument(file) {
   }
 }
 
-const AI_SYSTEM_PROMPT = `Kamu adalah engine "Pitulung OpenClaw" untuk Tanya Jawab Pintar Berbasis Dokumen Terverifikasi & Ekstraksi Tabel Data.
+const AI_SYSTEM_PROMPT = `Kamu adalah engine "Tinulung OpenClaw" untuk Tanya Jawab Pintar Berbasis Dokumen Terverifikasi & Ekstraksi Tabel Data.
 Tugasmu:
 1. Jika ada dokumen/data sumber dan pengguna bertanya atau meminta ekstraksi, jawab secara AKURAT hanya berdasarkan fakta di dalam dokumen/sumber (JANGAN mengarang di luar sumber).
 2. Ekstrak data menjadi TABEL terstruktur yang paling relevan dengan isi dokumen dan permintaan pengguna.
@@ -1001,7 +1001,7 @@ async function extractRealUrl(targetUrl, extraQuery, prefetched) {
   }
 }
 
-export async function processPitulungTask({
+export async function processTinulungTask({
   toolId,
   input,
   format,
