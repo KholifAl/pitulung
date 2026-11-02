@@ -1,5 +1,5 @@
 {
-  "name": "tinulung-app",
+  "name": "pitulung",
   "compatibility_date": "2025-04-01",
   "compatibility_flags": ["nodejs_compat"],
   "main": "server/worker.js",
