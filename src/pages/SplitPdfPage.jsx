@@ -18,8 +18,11 @@ import {
   triggerBrowserDownload,
   truncateFileName,
 } from '../utils/pdfTools'
+import { useLanguage } from '../i18n/LanguageContext'
 
 export default function SplitPdfPage() {
+  const { lang } = useLanguage()
+  const isEn = lang === 'en'
   const [pdfDocInfo, setPdfDocInfo] = useState(null)
   const [splitMode, setSplitMode] = useState('range') // 'range' (Opsi A) | 'all' (Opsi B)
   const [rangeInput, setRangeInput] = useState('')
@@ -38,7 +41,11 @@ export default function SplitPdfPage() {
     if (!file) return
     setErrorMsg('')
     setIsInspecting(true)
-    setProcessStep(`Membaca dokumen "${truncateFileName(file.name)}"...`)
+    setProcessStep(
+      isEn
+        ? `Reading document "${truncateFileName(file.name)}"...`
+        : `Membaca dokumen "${truncateFileName(file.name)}"...`
+    )
 
     try {
       const info = await inspectPdfFile(file)
@@ -50,7 +57,7 @@ export default function SplitPdfPage() {
           : '1'
       setRangeInput(defaultRange)
     } catch (err) {
-      setErrorMsg(err.message || 'Gagal membaca berkas PDF.')
+      setErrorMsg(err.message || (isEn ? 'Failed to read PDF file.' : 'Gagal membaca berkas PDF.'))
     } finally {
       setIsInspecting(false)
       setProcessStep('')
@@ -67,18 +74,27 @@ export default function SplitPdfPage() {
   const handleSplitNow = async (e) => {
     if (e) e.preventDefault()
     if (!pdfDocInfo?.file) {
-      setErrorMsg('Unggah berkas PDF terlebih dahulu.')
+      setErrorMsg(isEn ? 'Please upload a PDF file first.' : 'Unggah berkas PDF terlebih dahulu.')
       return
     }
 
     if (splitMode === 'range' && (!rangePreview || rangePreview.error || rangePreview.pages.length === 0)) {
-      setErrorMsg(rangePreview?.error || 'Tentukan rentang halaman yang valid terlebih dahulu.')
+      setErrorMsg(
+        rangePreview?.error ||
+          (isEn
+            ? 'Please specify a valid page range first.'
+            : 'Tentukan rentang halaman yang valid terlebih dahulu.')
+      )
       return
     }
 
     setErrorMsg('')
     setIsSplitting(true)
-    setProcessStep('Memisahkan halaman PDF langsung di browsermu...')
+    setProcessStep(
+      isEn
+        ? 'Splitting PDF pages directly in your browser...'
+        : 'Memisahkan halaman PDF langsung di browsermu...'
+    )
 
     try {
       const res = await splitPdfFile(
@@ -102,7 +118,7 @@ export default function SplitPdfPage() {
 
       setSplitResult({
         ...res,
-        timestamp: new Date().toLocaleTimeString('id-ID', {
+        timestamp: new Date().toLocaleTimeString(isEn ? 'en-US' : 'id-ID', {
           hour: '2-digit',
           minute: '2-digit',
         }),
@@ -111,7 +127,9 @@ export default function SplitPdfPage() {
         resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
       }, 80)
     } catch (err) {
-      setErrorMsg(err.message || 'Gagal memisahkan halaman PDF.')
+      setErrorMsg(
+        err.message || (isEn ? 'Failed to split PDF pages.' : 'Gagal memisahkan halaman PDF.')
+      )
     } finally {
       setIsSplitting(false)
       setProcessStep('')
@@ -127,11 +145,13 @@ export default function SplitPdfPage() {
   return (
     <section className="clean-hero-section">
       <h1 className="editorial-hero-title">
-        Pisahkan halaman PDF
+        {isEn ? 'Split PDF Pages' : 'Pisahkan halaman PDF'}
       </h1>
 
       <p className="editorial-hero-subtitle">
-        Pecah berkas menjadi file terpisah
+        {isEn
+          ? 'Split a PDF document into separate files'
+          : 'Pecah berkas menjadi file terpisah'}
       </p>
 
       {/* CENTRAL WORKSPACE CARD */}
@@ -180,12 +200,20 @@ export default function SplitPdfPage() {
                 <IconSplitPdf size={24} />
               </div>
               <div className="pdf-dropzone-text">
-                <strong>Tarik &amp; lepas 1 berkas PDF ke sini</strong>
-                <span>atau klik untuk memilih dokumen PDF dari perangkatmu</span>
+                <strong>
+                  {isEn
+                    ? 'Drag & drop 1 PDF file here'
+                    : 'Tarik & lepas 1 berkas PDF ke sini'}
+                </strong>
+                <span>
+                  {isEn
+                    ? 'or click to select a PDF document from your device'
+                    : 'atau klik untuk memilih dokumen PDF dari perangkatmu'}
+                </span>
               </div>
               <span className="pdf-dropzone-pill">
                 <IconPlus size={13} />
-                <span>Pilih File PDF</span>
+                <span>{isEn ? 'Select PDF File' : 'Pilih File PDF'}</span>
               </span>
             </div>
 
@@ -193,7 +221,11 @@ export default function SplitPdfPage() {
               <div className="pdf-action-summary">
                 <span className="pdf-privacy-badge">
                   <IconShield size={14} />
-                  <span>100% Lokal di Browser • Privasi Terjaga</span>
+                  <span>
+                    {isEn
+                      ? '100% Local in Browser • Privacy Protected'
+                      : '100% Lokal di Browser • Privasi Terjaga'}
+                  </span>
                 </span>
               </div>
             </div>
@@ -213,21 +245,21 @@ export default function SplitPdfPage() {
                         {truncateFileName(pdfDocInfo.name, 34)}
                       </strong>
                       <span className="active-doc-tag">
-                        {pdfDocInfo.pageCount} Halaman
+                        {pdfDocInfo.pageCount} {isEn ? 'Pages' : 'Halaman'}
                       </span>
                       <span className="pdf-file-size">
                         {formatFileSize(pdfDocInfo.size)}
                       </span>
                       <span
                         className="active-doc-verified"
-                        title="Siap Dipisah"
-                        aria-label="Siap Dipisah"
+                        title={isEn ? 'Ready to Split' : 'Siap Dipisah'}
+                        aria-label={isEn ? 'Ready to Split' : 'Siap Dipisah'}
                       >
                         <IconCheck size={12} />
                       </span>
                     </div>
                     <div className="active-doc-questions">
-                      <span>Pilih cepat:</span>
+                      <span>{isEn ? 'Quick select:' : 'Pilih cepat:'}</span>
                       <button
                         type="button"
                         className="doc-quick-chip"
@@ -236,7 +268,7 @@ export default function SplitPdfPage() {
                           setRangeInput('1')
                         }}
                       >
-                        Halaman 1 Saja
+                        {isEn ? 'Page 1 Only' : 'Halaman 1 Saja'}
                       </button>
                       {pdfDocInfo.pageCount >= 3 && (
                         <button
@@ -247,7 +279,9 @@ export default function SplitPdfPage() {
                             setRangeInput(`1-2, ${pdfDocInfo.pageCount}`)
                           }}
                         >
-                          Hal. 1-2 &amp; Terakhir ({pdfDocInfo.pageCount})
+                          {isEn
+                            ? `Pages 1-2 & Last (${pdfDocInfo.pageCount})`
+                            : `Hal. 1-2 & Terakhir (${pdfDocInfo.pageCount})`}
                         </button>
                       )}
                       <button
@@ -255,7 +289,9 @@ export default function SplitPdfPage() {
                         className="doc-quick-chip"
                         onClick={() => setSplitMode('all')}
                       >
-                        Semua Halaman ({pdfDocInfo.pageCount} File)
+                        {isEn
+                          ? `All Pages (${pdfDocInfo.pageCount} Files)`
+                          : `Semua Halaman (${pdfDocInfo.pageCount} File)`}
                       </button>
                     </div>
                   </div>
@@ -269,14 +305,14 @@ export default function SplitPdfPage() {
                     disabled={isBusy}
                   >
                     <IconUpload size={13} />
-                    <span>Ganti</span>
+                    <span>{isEn ? 'Replace' : 'Ganti'}</span>
                   </button>
                   <button
                     type="button"
                     className="doc-remove-btn"
                     onClick={handleClearFile}
                     disabled={isBusy}
-                    title="Hapus dokumen"
+                    title={isEn ? 'Remove document' : 'Hapus dokumen'}
                   >
                     <IconClose size={12} />
                   </button>
@@ -286,8 +322,14 @@ export default function SplitPdfPage() {
 
             {/* PILIHAN MODE PISAH (OPSI A & OPSI B) */}
             <div className="pdf-split-mode-section">
-              <span className="pdf-mode-label">Pilih Mode Pemisahan Halaman:</span>
-              <div className="pdf-split-mode-grid" role="radiogroup" aria-label="Mode pisah PDF">
+              <span className="pdf-mode-label">
+                {isEn ? 'Select Page Split Mode:' : 'Pilih Mode Pemisahan Halaman:'}
+              </span>
+              <div
+                className="pdf-split-mode-grid"
+                role="radiogroup"
+                aria-label={isEn ? 'PDF split mode' : 'Mode pisah PDF'}
+              >
                 <button
                   type="button"
                   role="radio"
@@ -299,11 +341,19 @@ export default function SplitPdfPage() {
                   }}
                 >
                   <div className="pdf-mode-card-top">
-                    <strong>Rentang Halaman Kustom</strong>
+                    <strong>{isEn ? 'Custom Page Range' : 'Rentang Halaman Kustom'}</strong>
                     <span className="pdf-mode-radio-dot" />
                   </div>
                   <span>
-                    Ambil halaman tertentu sesuai urutan yang kamu ketik (misal: <code>1-3, 5, 8-10</code>).
+                    {isEn ? (
+                      <>
+                        Extract specific pages in the order you type (e.g. <code>1-3, 5, 8-10</code>).
+                      </>
+                    ) : (
+                      <>
+                        Ambil halaman tertentu sesuai urutan yang kamu ketik (misal: <code>1-3, 5, 8-10</code>).
+                      </>
+                    )}
                   </span>
                 </button>
 
@@ -318,11 +368,21 @@ export default function SplitPdfPage() {
                   }}
                 >
                   <div className="pdf-mode-card-top">
-                    <strong>Pisah Semua Halaman Terpisah</strong>
+                    <strong>
+                      {isEn ? 'Split Every Page Separately' : 'Pisah Semua Halaman Terpisah'}
+                    </strong>
                     <span className="pdf-mode-radio-dot" />
                   </div>
                   <span>
-                    Pecah setiap halaman menjadi file PDF mandiri (bisa diunduh satuan atau bundel <code>.zip</code>).
+                    {isEn ? (
+                      <>
+                        Split every page into standalone PDF files (download individually or as a <code>.zip</code> bundle).
+                      </>
+                    ) : (
+                      <>
+                        Pecah setiap halaman menjadi file PDF mandiri (bisa diunduh satuan atau bundel <code>.zip</code>).
+                      </>
+                    )}
                   </span>
                 </button>
               </div>
@@ -336,13 +396,17 @@ export default function SplitPdfPage() {
                     ref={rangeInputRef}
                     type="text"
                     className="clean-text-input"
-                    placeholder={`Ketik rentang halaman (1 s/d ${pdfDocInfo.pageCount}), misal: 1-3, 5, 8-10`}
+                    placeholder={
+                      isEn
+                        ? `Enter page range (1 to ${pdfDocInfo.pageCount}), e.g. 1-3, 5, 8-10`
+                        : `Ketik rentang halaman (1 s/d ${pdfDocInfo.pageCount}), misal: 1-3, 5, 8-10`
+                    }
                     value={rangeInput}
                     onChange={(e) => {
                       setRangeInput(e.target.value)
                       setErrorMsg('')
                     }}
-                    aria-label="Rentang Halaman Kustom"
+                    aria-label={isEn ? 'Custom Page Range' : 'Rentang Halaman Kustom'}
                   />
                   {rangeInput && (
                     <button
@@ -352,7 +416,7 @@ export default function SplitPdfPage() {
                         setRangeInput('')
                         rangeInputRef.current?.focus()
                       }}
-                      title="Bersihkan rentang"
+                      title={isEn ? 'Clear range' : 'Bersihkan rentang'}
                     >
                       <IconClose size={12} />
                     </button>
@@ -369,8 +433,17 @@ export default function SplitPdfPage() {
                       <span>{rangePreview.error}</span>
                     ) : (
                       <span>
-                        Akan mengekstrak <strong>{rangePreview.pages.length} halaman</strong> (Halaman:{' '}
-                        {rangePreview.pages.join(', ')}) dari total {pdfDocInfo.pageCount} halaman.
+                        {isEn ? (
+                          <>
+                            Will extract <strong>{rangePreview.pages.length} pages</strong> (Pages:{' '}
+                            {rangePreview.pages.join(', ')}) out of {pdfDocInfo.pageCount} total pages.
+                          </>
+                        ) : (
+                          <>
+                            Akan mengekstrak <strong>{rangePreview.pages.length} halaman</strong> (Halaman:{' '}
+                            {rangePreview.pages.join(', ')}) dari total {pdfDocInfo.pageCount} halaman.
+                          </>
+                        )}
                       </span>
                     )}
                   </div>
@@ -380,7 +453,9 @@ export default function SplitPdfPage() {
               <div className="pdf-all-pages-summary-box">
                 <IconSplitPdf size={16} />
                 <span>
-                  Seluruh {pdfDocInfo.pageCount} halaman dari "{truncateFileName(pdfDocInfo.name, 26)}" akan dipecah menjadi {pdfDocInfo.pageCount} file PDF terpisah.
+                  {isEn
+                    ? `All ${pdfDocInfo.pageCount} pages of "${truncateFileName(pdfDocInfo.name, 26)}" will be split into ${pdfDocInfo.pageCount} separate PDF files.`
+                    : `Seluruh ${pdfDocInfo.pageCount} halaman dari "${truncateFileName(pdfDocInfo.name, 26)}" akan dipecah menjadi ${pdfDocInfo.pageCount} file PDF terpisah.`}
                 </span>
               </div>
             )}
@@ -390,7 +465,11 @@ export default function SplitPdfPage() {
               <div className="pdf-action-summary">
                 <span className="pdf-privacy-badge">
                   <IconShield size={14} />
-                  <span>100% Lokal di Browser • Privasi Terjaga</span>
+                  <span>
+                    {isEn
+                      ? '100% Local in Browser • Privacy Protected'
+                      : '100% Lokal di Browser • Privasi Terjaga'}
+                  </span>
                 </span>
               </div>
 
@@ -404,7 +483,13 @@ export default function SplitPdfPage() {
                 }
               >
                 <span>
-                  {isSplitting ? 'Memisahkan PDF...' : 'Pisahkan PDF Sekarang'}
+                  {isSplitting
+                    ? isEn
+                      ? 'Splitting PDF...'
+                      : 'Memisahkan PDF...'
+                    : isEn
+                      ? 'Split PDF Now'
+                      : 'Pisahkan PDF Sekarang'}
                 </span>
                 <span className="submit-arrow-circle">
                   <IconArrowUpRight size={16} />
@@ -423,7 +508,10 @@ export default function SplitPdfPage() {
         {isBusy && (
           <div className="clean-loading-bar" role="status">
             <div className="clean-loader-pulse" />
-            <span>{processStep || 'Memproses pemisahan halaman PDF...'}</span>
+            <span>
+              {processStep ||
+                (isEn ? 'Processing PDF page split...' : 'Memproses pemisahan halaman PDF...')}
+            </span>
           </div>
         )}
 
@@ -434,10 +522,11 @@ export default function SplitPdfPage() {
               <div className="clean-result-meta">
                 <span className="clean-badge-done">
                   <IconCheck size={13} />
-                  <span>Selesai &amp; Siap Diunduh</span>
+                  <span>{isEn ? 'Completed & Ready to Download' : 'Selesai & Siap Diunduh'}</span>
                 </span>
                 <span className="clean-result-info">
-                  Sumber: <strong title={splitResult.sourceName}>{truncateFileName(splitResult.sourceName, 24)}</strong> •{' '}
+                  {isEn ? 'Source: ' : 'Sumber: '}
+                  <strong title={splitResult.sourceName}>{truncateFileName(splitResult.sourceName, 24)}</strong> •{' '}
                   {splitResult.timestamp}
                 </span>
               </div>
@@ -456,7 +545,11 @@ export default function SplitPdfPage() {
                     }
                   >
                     <IconDownload size={14} />
-                    <span>Unduh PDF Pilihan ({splitResult.extractedCount} Hal)</span>
+                    <span>
+                      {isEn
+                        ? `Download Extracted PDF (${splitResult.extractedCount} Pgs)`
+                        : `Unduh PDF Pilihan (${splitResult.extractedCount} Hal)`}
+                    </span>
                   </button>
                 )}
 
@@ -473,7 +566,7 @@ export default function SplitPdfPage() {
                     }
                   >
                     <IconDownload size={14} />
-                    <span>Unduh Semua (.zip)</span>
+                    <span>{isEn ? 'Download All (.zip)' : 'Unduh Semua (.zip)'}</span>
                   </button>
                 )}
 
@@ -481,8 +574,8 @@ export default function SplitPdfPage() {
                   type="button"
                   className="clean-close-result"
                   onClick={() => setSplitResult(null)}
-                  title="Tutup"
-                  aria-label="Tutup"
+                  title={isEn ? 'Close' : 'Tutup'}
+                  aria-label={isEn ? 'Close' : 'Tutup'}
                 >
                   <IconClose size={13} />
                 </button>
@@ -491,9 +584,22 @@ export default function SplitPdfPage() {
 
             <p className="clean-result-summary">
               {splitResult.mode === 'range' ? (
+                isEn ? (
+                  <>
+                    Successfully extracted <strong>{splitResult.extractedCount} pages</strong> (Pages{' '}
+                    {splitResult.selectedPages.join(', ')}) into a new PDF file.
+                  </>
+                ) : (
+                  <>
+                    Berhasil mengekstrak <strong>{splitResult.extractedCount} halaman</strong> (Halaman{' '}
+                    {splitResult.selectedPages.join(', ')}) menjadi berkas PDF baru.
+                  </>
+                )
+              ) : isEn ? (
                 <>
-                  Berhasil mengekstrak <strong>{splitResult.extractedCount} halaman</strong> (Halaman{' '}
-                  {splitResult.selectedPages.join(', ')}) menjadi berkas PDF baru.
+                  Successfully split <strong>{splitResult.totalPages} pages</strong> into{' '}
+                  <strong>{splitResult.files.length} separate PDF files</strong>. You can download the{' '}
+                  <code>.zip</code> bundle or download individual pages below:
                 </>
               ) : (
                 <>
@@ -522,7 +628,7 @@ export default function SplitPdfPage() {
                       onClick={() => triggerBrowserDownload(f.bytes, f.name, 'application/pdf')}
                     >
                       <IconDownload size={13} />
-                      <span>Unduh</span>
+                      <span>{isEn ? 'Download' : 'Unduh'}</span>
                     </button>
                   </div>
                 ))}

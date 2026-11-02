@@ -8,6 +8,7 @@ import {
   IconSplitPdf,
   IconTable,
 } from '../components/Icons'
+import { useLanguage } from '../i18n/LanguageContext'
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const LEGAL_PAGES_META = [
@@ -244,21 +245,274 @@ export const LEGAL_PAGES_META = [
   },
 ]
 
+// eslint-disable-next-line react-refresh/only-export-components
+export const LEGAL_PAGES_META_EN = [
+  {
+    slug: 'privacy-policy',
+    path: '/privacy-policy',
+    title: 'Privacy Policy',
+    shortLabel: 'Privacy Policy',
+    badge: 'PRIVACY & DATA PROTECTION',
+    updatedAt: 'October 27, 2026',
+    subtitle:
+      'Tinulung’s commitment to safeguarding the confidentiality of documents, PDF files, and data you process in your browser or through AI integrations.',
+    highlights: [
+      'Merge PDF, Split PDF & Compress PDF work 100% locally in your device browser without ever uploading files to any server.',
+      'Instant Mode processes text & table extraction directly without storing your documents in a database.',
+      'Personal API Keys are stored only temporarily in tab session memory (sessionStorage) and are automatically cleared when the tab closes.',
+    ],
+    sections: [
+      {
+        number: '01',
+        heading: 'Core Privacy Principles at Tinulung',
+        paragraphs: [
+          'Tinulung ("We") is built with Privacy-by-Design principles. We understand that the documents you manage, such as budget plans (RAB), work contracts, transaction invoices, and customer order recaps, are sensitive and confidential.',
+          'This Privacy Policy is aligned with the Republic of Indonesia Law No. 27 of 2022 on Personal Data Protection (UU PDP) to transparently explain how data is processed when you use Tinulung.',
+        ],
+      },
+      {
+        number: '02',
+        heading: 'How We Process Your Documents & Files',
+        paragraphs: [
+          'Data processing at Tinulung is divided into three mechanisms depending on the feature you use:',
+        ],
+        bullets: [
+          'Client-Side PDF Tools (Merge PDF, Split PDF & Compress PDF): All PDF merging, page splitting, and size compression run 100% inside your device browser (using local WebAssembly/JavaScript libraries). Your PDF files are never sent, uploaded, or stored on Tinulung servers.',
+          'Instant Mode / Local Parser (Ask & Extract Data): When you select "Default (Instant, without AI)", document reading and table extraction are performed instantaneously without forwarding document contents to third-party AI providers.',
+          'External AI Integration Mode (OpenClaw, Gemini, OpenAI, Claude, etc.): If you enable an AI engine, relevant text excerpts or queries are forwarded over an encrypted connection (HTTPS) to your chosen AI provider solely to generate answers or extracted tables.',
+        ],
+      },
+      {
+        number: '03',
+        heading: 'API Key Storage & User Preferences',
+        paragraphs: [
+          'If you enter a personal API Key in AI Settings, that key is stored only in temporary browser session storage (sessionStorage) on your device and is automatically erased as soon as the browser tab or window is closed.',
+          'We never log, store, or share your personal API Key in our server database. Non-sensitive preferences such as your chosen provider name and AI model are saved locally in your browser (localStorage) for convenience.',
+        ],
+      },
+      {
+        number: '04',
+        heading: 'Technical Data & Public Quota Rate Limiting',
+        paragraphs: [
+          'To keep our free service available for all users and prevent abuse (spam or excessive automation), our server may process minimal technical information such as anonymized IP addresses, request timestamps, and daily public quota counters.',
+          'We do not sell, rent, or trade user personal information or document contents to any party for advertising purposes.',
+        ],
+      },
+      {
+        number: '05',
+        heading: 'User Rights Over Personal Data',
+        paragraphs: [
+          'In accordance with the Personal Data Protection Law (UU PDP), you have full control over data on your device:',
+        ],
+        bullets: [
+          'Remove any currently opened document at any time via the "Remove document" button or by reloading the page.',
+          'Reset AI engine configurations and clear your API Key from the browser session via the "Reset to Default" button in AI Settings.',
+          'Clear all local site data (localStorage & sessionStorage) through your browser’s privacy settings.',
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'terms',
+    path: '/terms',
+    title: 'Terms and Conditions',
+    shortLabel: 'Terms & Conditions',
+    badge: 'TERMS OF SERVICE',
+    updatedAt: 'October 27, 2026',
+    subtitle:
+      'Rules for using our services, fair use limits, intellectual property rights, and voluntary tip-jar support terms on Tinulung.',
+    highlights: [
+      'Tinulung is free to use for personal, academic, small business (MSME), and professional workflows.',
+      'Users are solely responsible for the legality and access rights of documents uploaded or extracted.',
+      'Support through "Treat Cilok / Server Support" via QRIS is completely voluntary and non-binding.',
+    ],
+    sections: [
+      {
+        number: '01',
+        heading: 'Acceptance of Terms & Conditions',
+        paragraphs: [
+          'By accessing and using the Tinulung website and digital workspace tools, you acknowledge that you have read, understood, and agreed to these Terms and Conditions. If you do not agree with any part of these terms, please discontinue using the service.',
+        ],
+      },
+      {
+        number: '02',
+        heading: 'Permitted Use & Restrictions',
+        paragraphs: [
+          'Tinulung is provided as a digital productivity utility. When using our services, you agree not to engage in the following activities:',
+        ],
+        bullets: [
+          'Uploading or processing unlawful documents, malware, or files that infringe upon third-party copyrights or confidentiality without authorization.',
+          'Performing automated scraping, Denial-of-Service (DDoS) attacks, or bypassing public quota limits in ways that disrupt other users.',
+          'Using the web link extraction feature to harvest protected data in violation of the target website’s terms of service.',
+        ],
+      },
+      {
+        number: '03',
+        heading: 'Intellectual Property & Document Ownership',
+        paragraphs: [
+          'Full ownership of all PDF files, documents, text, and data you upload, as well as extracted outputs (CSV, JSON, merged/split/compressed PDFs), remains entirely yours.',
+          'Meanwhile, the Tinulung name, logo, interface design, and application source code are protected under applicable intellectual property laws.',
+        ],
+      },
+      {
+        number: '04',
+        heading: 'Service Availability & Public Quota',
+        paragraphs: [
+          'We strive to keep Tinulung accessible 24/7. However, features utilizing the shared public AI quota are subject to daily fair-use limits. When the public quota is full, you can still use Instant Mode (Local Parser), all PDF tools, or connect your own personal API Key.',
+        ],
+      },
+      {
+        number: '05',
+        heading: 'Voluntary Support Terms ("Treat Cilok" QRIS)',
+        paragraphs: [
+          'The "Treat Cilok / Server Support" feature uses the National QRIS payment standard as a voluntary tip-jar to help cover server operating costs and new feature development.',
+          'Any support funds sent are voluntary tips/grants, are non-refundable, and do not create special paid subscription obligations beyond the openly available features.',
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'cookies',
+    path: '/cookies',
+    title: 'Cookie & Storage Policy',
+    shortLabel: 'Cookie Policy',
+    badge: 'COOKIES & BROWSER STORAGE',
+    updatedAt: 'October 27, 2026',
+    subtitle:
+      'Transparent explanation of how Tinulung uses local browser storage (LocalStorage & SessionStorage) with zero third-party ad trackers.',
+    highlights: [
+      'Tinulung does NOT use third-party advertising tracker cookies (zero ad-trackers).',
+      'We only use native browser LocalStorage & SessionStorage to remember your tool and language preferences.',
+      'You can clear local storage at any time directly from AI Settings or your browser settings.',
+    ],
+    storageTable: {
+      columns: ['Storage Key Name', 'Type', 'Purpose', 'Retention'],
+      rows: [
+        [
+          'tinulung_engine_config',
+          'localStorage',
+          'Saves your selected processing engine (e.g. Instant Mode, OpenClaw, Gemini) and chosen AI model name.',
+          'Kept until reset by user',
+        ],
+        [
+          'tinulung_ui_lang',
+          'localStorage',
+          'Saves your selected interface language preference (Bahasa Indonesia or English).',
+          'Kept until cleared by user',
+        ],
+        [
+          'tinulung_user_api_key',
+          'sessionStorage',
+          'Temporarily holds your personal API Key so you do not have to retype it while the tab remains open.',
+          'Automatically deleted when tab closes',
+        ],
+      ],
+    },
+    sections: [
+      {
+        number: '01',
+        heading: 'Does Tinulung Use Cookies?',
+        paragraphs: [
+          'Unlike many websites that install dozens of tracking cookies for targeted advertising, Tinulung does not install behavioral tracking cookies or third-party advertising pixels.',
+          'Instead, we rely on standard Web Storage technologies in modern browsers (localStorage and sessionStorage) that operate purely on your device to keep your workspace preferences intact.',
+        ],
+      },
+      {
+        number: '02',
+        heading: 'Details of Local Storage Used',
+        paragraphs: [
+          'Below is the complete list of technical keys stored in your device browser when using Tinulung:',
+        ],
+      },
+      {
+        number: '03',
+        heading: 'How to Manage or Clear Local Storage',
+        paragraphs: [
+          'You have full control over your browser storage. To clear the data above, you can do any of the following:',
+        ],
+        bullets: [
+          'Click "AI Settings" in the page footer, then press "Reset to Default" to restore default settings and remove any API Key from the active session.',
+          'Close the browser tab to automatically erase all sessionStorage data.',
+          'Use the "Clear Site Data" feature in your browser privacy settings (Chrome, Edge, Firefox, Safari).',
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'disclaimer',
+    path: '/disclaimer',
+    title: 'Disclaimer',
+    shortLabel: 'Disclaimer',
+    badge: 'LIMITATION OF LIABILITY & AI ACCURACY',
+    updatedAt: 'October 27, 2026',
+    subtitle:
+      'Important information regarding automated extraction accuracy, artificial intelligence (AI) usage, and document verification responsibility.',
+    highlights: [
+      'Extracted tables and AI answers are provided to speed up your workflow, not to replace final human verification.',
+      'We provide "Source Citations" so you can always cross-check extracted results against the original document text.',
+      'Tinulung does not provide legal, tax, or financial advice on contracts or budget documents processed.',
+    ],
+    sections: [
+      {
+        number: '01',
+        heading: 'Extraction Accuracy & AI Models',
+        paragraphs: [
+          'Tinulung combines verified document extraction algorithms with artificial intelligence (AI) models to help organize tables, numbers, dates, and order recaps. While we designed source citation verification to minimize AI hallucinations, automated parsing still has limitations depending on the formatting quality of the original file.',
+          'Therefore, users must review and verify numbers, currency amounts, contract clauses, and order details before relying on them for business decisions, shipments, or financial transactions.',
+        ],
+      },
+      {
+        number: '02',
+        heading: 'No Legal, Financial, or Professional Advice',
+        paragraphs: [
+          'All summaries, document Q&A responses, and contract/penalty clause extractions generated by Tinulung are strictly informational reading aids. They do not constitute legal opinions, financial audits, or professional consultation.',
+        ],
+      },
+      {
+        number: '03',
+        heading: 'External Website Links & Third-Party AI Providers',
+        paragraphs: [
+          'Web link extraction and external AI provider integrations (such as Google Gemini, OpenAI, Anthropic Claude, or self-hosted OpenClaw servers) connect your requests to third-party services. We have no control over server availability, policy changes, or content hosted on those external services.',
+        ],
+      },
+      {
+        number: '04',
+        heading: 'Service Provided "As-Is"',
+        paragraphs: [
+          'Tinulung is provided on an "as-is" basis without warranties of any kind, either express or implied. The developers of Tinulung are not liable for direct or indirect damages arising from data misinterpretation, network delays, or device failures while processing documents.',
+        ],
+      },
+    ],
+  },
+]
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function getLegalPagesMeta(lang = 'id') {
+  return lang === 'en' ? LEGAL_PAGES_META_EN : LEGAL_PAGES_META
+}
+
 export function AboutPage() {
   const navigate = useNavigate()
+  const { lang } = useLanguage()
+  const isEn = lang === 'en'
 
   return (
     <section className="clean-hero-section legal-page-section">
-      <h1 className="editorial-hero-title legal-hero-title">Tentang Tinulung</h1>
+      <h1 className="editorial-hero-title legal-hero-title">
+        {isEn ? 'About Tinulung' : 'Tentang Tinulung'}
+      </h1>
       <p className="editorial-hero-subtitle legal-hero-subtitle">
-        Alat bantu digital praktis berbahasa Indonesia yang dibuat agar pekerjaan dokumen, tabel, dan berkas PDF harianmu cepat beres tanpa ribet.
+        {isEn
+          ? 'Practical digital workspace utilities built to help you finish daily document, table, and PDF tasks quickly without the hassle.'
+          : 'Alat bantu digital praktis berbahasa Indonesia yang dibuat agar pekerjaan dokumen, tabel, dan berkas PDF harianmu cepat beres tanpa ribet.'}
       </p>
 
       <div className="clean-workspace-card legal-document-card">
         <div className="legal-doc-topbar">
           <div className="legal-doc-status">
             <span className="legal-updated-date">
-              Pengelola: <strong>Tinulung Digital</strong>
+              {isEn ? 'Maintained by: ' : 'Pengelola: '}
+              <strong>Tinulung Digital</strong>
             </span>
           </div>
 
@@ -267,7 +521,7 @@ export function AboutPage() {
             className="sample-doc-trigger-btn"
             onClick={() => navigate('/')}
           >
-            <span>Kembali ke Beranda</span>
+            <span>{isEn ? 'Back to Home' : 'Kembali ke Beranda'}</span>
             <IconArrowUpRight size={13} />
           </button>
         </div>
@@ -276,7 +530,7 @@ export function AboutPage() {
         <div className="legal-highlights-box">
           <div className="legal-highlights-head">
             <IconSparkle size={14} />
-            <strong>Kenapa Tinulung Hadir?</strong>
+            <strong>{isEn ? 'Why Tinulung Exists' : 'Kenapa Tinulung Hadir?'}</strong>
           </div>
           <ul className="legal-highlights-list">
             <li>
@@ -284,7 +538,15 @@ export function AboutPage() {
                 <IconCheck size={12} />
               </span>
               <span>
-                Diambil dari kata bahasa Jawa/Indonesia <strong>&ldquo;Tinulung&rdquo;</strong> yang berarti pertolongan atau bantuan yang tulus.
+                {isEn ? (
+                  <>
+                    Named after the Javanese/Indonesian word <strong>&ldquo;Tinulung&rdquo;</strong>, meaning sincere help and mutual assistance.
+                  </>
+                ) : (
+                  <>
+                    Diambil dari kata bahasa Jawa/Indonesia <strong>&ldquo;Tinulung&rdquo;</strong> yang berarti pertolongan atau bantuan yang tulus.
+                  </>
+                )}
               </span>
             </li>
             <li>
@@ -292,7 +554,9 @@ export function AboutPage() {
                 <IconCheck size={12} />
               </span>
               <span>
-                Dirancang agar siapa saja bisa langsung memproses dokumen tanpa harus registrasi akun atau berlangganan mahal.
+                {isEn
+                  ? 'Designed so anyone can immediately process documents without mandatory account registration or expensive subscriptions.'
+                  : 'Dirancang agar siapa saja bisa langsung memproses dokumen tanpa harus registrasi akun atau berlangganan mahal.'}
               </span>
             </li>
             <li>
@@ -300,7 +564,9 @@ export function AboutPage() {
                 <IconCheck size={12} />
               </span>
               <span>
-                Mengutamakan keamanan privasi: alat PDF bekerja 100% lokal di browser, serta mendukung Mode Instan maupun AI pilihanmu.
+                {isEn
+                  ? 'Privacy-first architecture: PDF tools run 100% locally in your browser, alongside Instant Mode and optional AI integrations.'
+                  : 'Mengutamakan keamanan privasi: alat PDF bekerja 100% lokal di browser, serta mendukung Mode Instan maupun AI pilihanmu.'}
               </span>
             </li>
           </ul>
@@ -313,9 +579,15 @@ export function AboutPage() {
               <IconFileText size={16} />
             </span>
             <div>
-              <h3>Tanya &amp; Ekstrak Dokumen Terverifikasi</h3>
+              <h3>
+                {isEn
+                  ? 'Verified Document Q&A & Extraction'
+                  : 'Tanya & Ekstrak Dokumen Terverifikasi'}
+              </h3>
               <p>
-                Unggah PDF, CSV, TXT, atau JSON untuk mengekstrak tabel RAB, termin bayar, serta jawaban yang dilengkapi kutipan sumber asli.
+                {isEn
+                  ? 'Upload PDF, CSV, TXT, or JSON files to extract budget tables, payment terms, and answers backed by original source citations.'
+                  : 'Unggah PDF, CSV, TXT, atau JSON untuk mengekstrak tabel RAB, termin bayar, serta jawaban yang dilengkapi kutipan sumber asli.'}
               </p>
             </div>
           </div>
@@ -325,9 +597,15 @@ export function AboutPage() {
               <IconTable size={16} />
             </span>
             <div>
-              <h3>Ekstrak Link Web &amp; Rekap Order WA</h3>
+              <h3>
+                {isEn
+                  ? 'Web Link Extraction & WA Order Recap'
+                  : 'Ekstrak Link Web & Rekap Order WA'}
+              </h3>
               <p>
-                Ubah tabel dari halaman web menjadi CSV/Excel atau rapikan chat pesanan WhatsApp pelanggan jadi rekap tabel siap kirim.
+                {isEn
+                  ? 'Turn tables from web pages into CSV/Excel or tidy up customer WhatsApp order chats into structured tables.'
+                  : 'Ubah tabel dari halaman web menjadi CSV/Excel atau rapikan chat pesanan WhatsApp pelanggan jadi rekap tabel siap kirim.'}
               </p>
             </div>
           </div>
@@ -337,9 +615,15 @@ export function AboutPage() {
               <IconMergePdf size={16} />
             </span>
             <div>
-              <h3>Gabung PDF (Merge) 100% di Browser</h3>
+              <h3>
+                {isEn
+                  ? 'Merge PDF 100% in Browser'
+                  : 'Gabung PDF (Merge) 100% di Browser'}
+              </h3>
               <p>
-                Susun urutan dan satukan banyak berkas PDF menjadi satu dokumen utuh tanpa pernah mengunggah file ke server luar.
+                {isEn
+                  ? 'Reorder and combine multiple PDF files into a single document without ever uploading your files to an external server.'
+                  : 'Susun urutan dan satukan banyak berkas PDF menjadi satu dokumen utuh tanpa pernah mengunggah file ke server luar.'}
               </p>
             </div>
           </div>
@@ -349,9 +633,15 @@ export function AboutPage() {
               <IconSplitPdf size={16} />
             </span>
             <div>
-              <h3>Pisah PDF (Split) Cepat &amp; Aman</h3>
+              <h3>
+                {isEn
+                  ? 'Fast & Private PDF Split & Compress'
+                  : 'Pisah PDF (Split) Cepat & Aman'}
+              </h3>
               <p>
-                Ambil rentang halaman tertentu atau pecah setiap halaman PDF menjadi berkas terpisah secara instan di perangkatmu.
+                {isEn
+                  ? 'Extract custom page ranges, split every page into separate PDFs, or compress PDF file sizes directly on your device.'
+                  : 'Ambil rentang halaman tertentu atau pecah setiap halaman PDF menjadi berkas terpisah secara instan di perangkatmu.'}
               </p>
             </div>
           </div>
@@ -362,14 +652,20 @@ export function AboutPage() {
           <article className="legal-section-block">
             <div className="legal-section-header">
               <span className="legal-sec-num">01</span>
-              <h2>Filosofi &amp; Kemandirian Layanan</h2>
+              <h2>
+                {isEn ? 'Philosophy & Service Independence' : 'Filosofi & Kemandirian Layanan'}
+              </h2>
             </div>
             <div className="legal-section-body">
               <p>
-                Banyak pekerja kantor, pelaku UMKM, admin toko online, hingga mahasiswa sering menghabiskan waktu berjam-jam hanya untuk menyalin tabel dari PDF ke Excel, mengecek pasal di dokumen RAB, atau merekap chat pesanan satu per satu.
+                {isEn
+                  ? 'Many office workers, small business owners, online shop admins, and students spend hours manually copying tables from PDFs into Excel, checking clauses in budget documents, or recapping order chats one by one.'
+                  : 'Banyak pekerja kantor, pelaku UMKM, admin toko online, hingga mahasiswa sering menghabiskan waktu berjam-jam hanya untuk menyalin tabel dari PDF ke Excel, mengecek pasal di dokumen RAB, atau merekap chat pesanan satu per satu.'}
               </p>
               <p>
-                Tinulung dibangun agar tetap ringan, bebas dari iklan pop-up yang mengganggu, dan selalu siap membantu mempercepat pekerjaan administrasi harian di berbagai perangkat.
+                {isEn
+                  ? 'Tinulung is built to stay lightweight, free from intrusive pop-up ads, and ready to speed up daily administrative work across any device.'
+                  : 'Tinulung dibangun agar tetap ringan, bebas dari iklan pop-up yang mengganggu, dan selalu siap membantu mempercepat pekerjaan administrasi harian di berbagai perangkat.'}
               </p>
             </div>
           </article>
@@ -377,11 +673,21 @@ export function AboutPage() {
           <article className="legal-section-block">
             <div className="legal-section-header">
               <span className="legal-sec-num">02</span>
-              <h2>Transparansi &amp; Saluran Komunikasi</h2>
+              <h2>
+                {isEn ? 'Transparency & Communication Channels' : 'Transparansi & Saluran Komunikasi'}
+              </h2>
             </div>
             <div className="legal-section-body">
               <p>
-                Kami selalu terbuka terhadap saran pengembangan fitur baru, laporan kendala teknis, maupun pertanyaan seputar layanan. Kamu dapat menghubungi tim pengembang kapan saja melalui menu <strong>Kontak</strong> yang tersedia di bagian bawah (footer) situs ini.
+                {isEn ? (
+                  <>
+                    We are always open to feature suggestions, technical bug reports, and general questions. You can reach our development team anytime through the <strong>Contact</strong> menu in the website footer.
+                  </>
+                ) : (
+                  <>
+                    Kami selalu terbuka terhadap saran pengembangan fitur baru, laporan kendala teknis, maupun pertanyaan seputar layanan. Kamu dapat menghubungi tim pengembang kapan saja melalui menu <strong>Kontak</strong> yang tersedia di bagian bawah (footer) situs ini.
+                  </>
+                )}
               </p>
             </div>
           </article>
@@ -393,8 +699,11 @@ export function AboutPage() {
 
 export default function LegalPage({ pageSlug = 'privacy-policy' }) {
   const navigate = useNavigate()
+  const { lang } = useLanguage()
+  const isEn = lang === 'en'
+  const pagesList = getLegalPagesMeta(lang)
   const activePage =
-    LEGAL_PAGES_META.find((p) => p.slug === pageSlug) || LEGAL_PAGES_META[0]
+    pagesList.find((p) => p.slug === pageSlug) || pagesList[0]
 
   return (
     <section className="clean-hero-section legal-page-section">
@@ -402,8 +711,11 @@ export default function LegalPage({ pageSlug = 'privacy-policy' }) {
       <p className="editorial-hero-subtitle legal-hero-subtitle">{activePage.subtitle}</p>
 
       {/* NAVIGASI ANTAR DOKUMEN KEBIJAKAN LEGAL (MURNI 4 KEBIJAKAN) */}
-      <nav className="legal-tabs-nav" aria-label="Navigasi Halaman Kebijakan Legal">
-        {LEGAL_PAGES_META.map((item) => {
+      <nav
+        className="legal-tabs-nav"
+        aria-label={isEn ? 'Legal Policy Pages Navigation' : 'Navigasi Halaman Kebijakan Legal'}
+      >
+        {pagesList.map((item) => {
           const isCurrent = item.slug === activePage.slug
           return (
             <Link
@@ -424,7 +736,8 @@ export default function LegalPage({ pageSlug = 'privacy-policy' }) {
         <div className="legal-doc-topbar">
           <div className="legal-doc-status">
             <span className="legal-updated-date">
-              Terakhir diperbarui: <strong>{activePage.updatedAt}</strong>
+              {isEn ? 'Last updated: ' : 'Terakhir diperbarui: '}
+              <strong>{activePage.updatedAt}</strong>
             </span>
           </div>
 
@@ -433,7 +746,7 @@ export default function LegalPage({ pageSlug = 'privacy-policy' }) {
             className="sample-doc-trigger-btn"
             onClick={() => navigate('/')}
           >
-            <span>Kembali ke Beranda</span>
+            <span>{isEn ? 'Back to Home' : 'Kembali ke Beranda'}</span>
             <IconArrowUpRight size={13} />
           </button>
         </div>
@@ -443,7 +756,9 @@ export default function LegalPage({ pageSlug = 'privacy-policy' }) {
           <div className="legal-highlights-box">
             <div className="legal-highlights-head">
               <IconSparkle size={14} />
-              <strong>Intisari Singkat (Ringkasan Cepat)</strong>
+              <strong>
+                {isEn ? 'Key Highlights (Quick Summary)' : 'Intisari Singkat (Ringkasan Cepat)'}
+              </strong>
             </div>
             <ul className="legal-highlights-list">
               {activePage.highlights.map((point, idx) => (

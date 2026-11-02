@@ -20,8 +20,11 @@ import {
   triggerBrowserDownload,
   truncateFileName,
 } from '../utils/pdfTools'
+import { useLanguage } from '../i18n/LanguageContext'
 
 export default function MergePdfPage() {
+  const { lang } = useLanguage()
+  const isEn = lang === 'en'
   const [pdfItems, setPdfItems] = useState([])
   const [isDragging, setIsDragging] = useState(false)
   const [isInspecting, setIsInspecting] = useState(false)
@@ -39,7 +42,11 @@ export default function MergePdfPage() {
 
     setErrorMsg('')
     setIsInspecting(true)
-    setProcessStep('Membaca berkas PDF & menghitung jumlah halaman...')
+    setProcessStep(
+      isEn
+        ? 'Reading PDF files & counting pages...'
+        : 'Membaca berkas PDF & menghitung jumlah halaman...'
+    )
 
     const newItems = []
     const errors = []
@@ -49,7 +56,10 @@ export default function MergePdfPage() {
         const info = await inspectPdfFile(file)
         newItems.push(info)
       } catch (err) {
-        errors.push(err.message || `Gagal membaca "${file.name}".`)
+        errors.push(
+          err.message ||
+            (isEn ? `Failed to read "${file.name}".` : `Gagal membaca "${file.name}".`)
+        )
       }
     }
 
@@ -92,13 +102,21 @@ export default function MergePdfPage() {
 
   const handleMergeNow = async () => {
     if (pdfItems.length < 2) {
-      setErrorMsg('Unggah minimal 2 berkas PDF terlebih dahulu untuk digabungkan.')
+      setErrorMsg(
+        isEn
+          ? 'Please upload at least 2 PDF files first to merge them.'
+          : 'Unggah minimal 2 berkas PDF terlebih dahulu untuk digabungkan.'
+      )
       return
     }
 
     setErrorMsg('')
     setIsMerging(true)
-    setProcessStep('Menggabungkan dokumen PDF langsung di browsermu...')
+    setProcessStep(
+      isEn
+        ? 'Merging PDF documents directly in your browser...'
+        : 'Menggabungkan dokumen PDF langsung di browsermu...'
+    )
 
     try {
       const res = await mergePdfFiles(pdfItems, (step) => setProcessStep(step))
@@ -106,7 +124,7 @@ export default function MergePdfPage() {
 
       setMergedResult({
         ...res,
-        timestamp: new Date().toLocaleTimeString('id-ID', {
+        timestamp: new Date().toLocaleTimeString(isEn ? 'en-US' : 'id-ID', {
           hour: '2-digit',
           minute: '2-digit',
         }),
@@ -115,7 +133,9 @@ export default function MergePdfPage() {
         resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
       }, 80)
     } catch (err) {
-      setErrorMsg(err.message || 'Gagal menggabungkan berkas PDF.')
+      setErrorMsg(
+        err.message || (isEn ? 'Failed to merge PDF files.' : 'Gagal menggabungkan berkas PDF.')
+      )
     } finally {
       setIsMerging(false)
       setProcessStep('')
@@ -129,10 +149,12 @@ export default function MergePdfPage() {
   return (
     <section className="clean-hero-section">
       <h1 className="editorial-hero-title">
-        Gabung Beberapa PDF
+        {isEn ? 'Merge Multiple PDFs' : 'Gabung Beberapa PDF'}
       </h1>
       <p className="editorial-hero-subtitle">
-        Gabung beberapa dokumen PDF jadi satu
+        {isEn
+          ? 'Combine multiple PDF documents into one file'
+          : 'Gabung beberapa dokumen PDF jadi satu'}
       </p>
 
       {/* CENTRAL WORKSPACE CARD */}
@@ -183,14 +205,20 @@ export default function MergePdfPage() {
               <IconMergePdf size={24} />
             </div>
             <div className="pdf-dropzone-text">
-              <strong>Tarik &amp; lepas beberapa file PDF ke sini</strong>
+              <strong>
+                {isEn
+                  ? 'Drag & drop multiple PDF files here'
+                  : 'Tarik & lepas beberapa file PDF ke sini'}
+              </strong>
               <span>
-                atau klik untuk memilih berkas dari perangkatmu (minimal 2 file PDF)
+                {isEn
+                  ? 'or click to select files from your device (minimum 2 PDF files)'
+                  : 'atau klik untuk memilih berkas dari perangkatmu (minimal 2 file PDF)'}
               </span>
             </div>
             <span className="pdf-dropzone-pill">
               <IconPlus size={13} />
-              <span>Pilih File PDF</span>
+              <span>{isEn ? 'Select PDF Files' : 'Pilih File PDF'}</span>
             </span>
           </div>
         ) : (
@@ -198,8 +226,9 @@ export default function MergePdfPage() {
             <div className="pdf-file-list-head">
               <div>
                 <span>
-                  Urutan Penggabungan ({pdfItems.length} file • {totalPages} Halaman •{' '}
-                  {formatFileSize(totalSize)})
+                  {isEn
+                    ? `Merge Order (${pdfItems.length} files • ${totalPages} Pages • ${formatFileSize(totalSize)})`
+                    : `Urutan Penggabungan (${pdfItems.length} file • ${totalPages} Halaman • ${formatFileSize(totalSize)})`}
                 </span>
               </div>
               <div className="empty-doc-left">
@@ -210,7 +239,7 @@ export default function MergePdfPage() {
                   disabled={isBusy}
                 >
                   <IconUpload size={13} />
-                  <span>Tambah File PDF</span>
+                  <span>{isEn ? 'Add PDF Files' : 'Tambah File PDF'}</span>
                 </button>
                 <button
                   type="button"
@@ -219,16 +248,24 @@ export default function MergePdfPage() {
                   disabled={isBusy}
                 >
                   <IconTrash size={13} />
-                  <span>Bersihkan Semua</span>
+                  <span>{isEn ? 'Clear All' : 'Bersihkan Semua'}</span>
                 </button>
               </div>
             </div>
 
-            <ul className="pdf-file-list" aria-label="Daftar berkas PDF yang akan digabung">
+            <ul
+              className="pdf-file-list"
+              aria-label={
+                isEn ? 'List of PDF files to be merged' : 'Daftar berkas PDF yang akan digabung'
+              }
+            >
               {pdfItems.map((item, idx) => (
                 <li key={item.id} className="pdf-file-item">
                   <div className="pdf-file-item-left">
-                    <span className="pdf-file-order-badge" aria-label={`Urutan ${idx + 1}`}>
+                    <span
+                      className="pdf-file-order-badge"
+                      aria-label={isEn ? `Order ${idx + 1}` : `Urutan ${idx + 1}`}
+                    >
                       {idx + 1}
                     </span>
                     <span className="active-doc-icon pdf-item-icon">
@@ -240,7 +277,7 @@ export default function MergePdfPage() {
                       </strong>
                       <div className="pdf-file-submeta">
                         <span className="active-doc-tag">
-                          {item.pageCount} Halaman
+                          {item.pageCount} {isEn ? 'Pages' : 'Halaman'}
                         </span>
                         <span className="pdf-file-size">{formatFileSize(item.size)}</span>
                       </div>
@@ -253,8 +290,8 @@ export default function MergePdfPage() {
                       className="pdf-order-btn"
                       onClick={() => handleMoveItem(idx, -1)}
                       disabled={idx === 0 || isBusy}
-                      title="Geser ke atas"
-                      aria-label={`Geser ${item.name} ke atas`}
+                      title={isEn ? 'Move up' : 'Geser ke atas'}
+                      aria-label={isEn ? `Move ${item.name} up` : `Geser ${item.name} ke atas`}
                     >
                       <IconArrowUp size={14} />
                     </button>
@@ -263,8 +300,8 @@ export default function MergePdfPage() {
                       className="pdf-order-btn"
                       onClick={() => handleMoveItem(idx, 1)}
                       disabled={idx === pdfItems.length - 1 || isBusy}
-                      title="Geser ke bawah"
-                      aria-label={`Geser ${item.name} ke bawah`}
+                      title={isEn ? 'Move down' : 'Geser ke bawah'}
+                      aria-label={isEn ? `Move ${item.name} down` : `Geser ${item.name} ke bawah`}
                     >
                       <IconArrowDown size={14} />
                     </button>
@@ -273,8 +310,8 @@ export default function MergePdfPage() {
                       className="doc-remove-btn pdf-delete-btn"
                       onClick={() => handleRemoveItem(item.id)}
                       disabled={isBusy}
-                      title="Hapus file dari daftar"
-                      aria-label={`Hapus ${item.name}`}
+                      title={isEn ? 'Remove file from list' : 'Hapus file dari daftar'}
+                      aria-label={isEn ? `Remove ${item.name}` : `Hapus ${item.name}`}
                     >
                       <IconClose size={12} />
                     </button>
@@ -290,7 +327,9 @@ export default function MergePdfPage() {
           <div className="pdf-action-summary">
             <span className="pdf-privacy-badge">
               <IconShield size={14} />
-              <span>100% Lokal di Browser • Privasi Terjaga</span>
+              <span>
+                {isEn ? '100% Local in Browser • Privacy Protected' : '100% Lokal di Browser • Privasi Terjaga'}
+              </span>
             </span>
           </div>
 
@@ -301,7 +340,13 @@ export default function MergePdfPage() {
             disabled={isBusy || pdfItems.length < 2}
           >
             <span>
-              {isMerging ? 'Menggabungkan PDF...' : 'Gabung PDF Sekarang'}
+              {isMerging
+                ? isEn
+                  ? 'Merging PDFs...'
+                  : 'Menggabungkan PDF...'
+                : isEn
+                  ? 'Merge PDFs Now'
+                  : 'Gabung PDF Sekarang'}
             </span>
             <span className="submit-arrow-circle">
               <IconArrowUpRight size={16} />
@@ -318,7 +363,9 @@ export default function MergePdfPage() {
         {isBusy && (
           <div className="clean-loading-bar" role="status">
             <div className="clean-loader-pulse" />
-            <span>{processStep || 'Memproses dokumen PDF...'}</span>
+            <span>
+              {processStep || (isEn ? 'Processing PDF documents...' : 'Memproses dokumen PDF...')}
+            </span>
           </div>
         )}
 
@@ -329,10 +376,13 @@ export default function MergePdfPage() {
               <div className="clean-result-meta">
                 <span className="clean-badge-done">
                   <IconCheck size={13} />
-                  <span>Selesai &amp; Otomatis Diunduh</span>
+                  <span>{isEn ? 'Completed & Auto-Downloaded' : 'Selesai & Otomatis Diunduh'}</span>
                 </span>
                 <span className="clean-result-info">
-                  <strong>{mergedResult.fileCount} berkas</strong> ({mergedResult.totalPages} halaman) •{' '}
+                  <strong>
+                    {mergedResult.fileCount} {isEn ? 'files' : 'berkas'}
+                  </strong>{' '}
+                  ({mergedResult.totalPages} {isEn ? 'pages' : 'halaman'}) •{' '}
                   {formatFileSize(mergedResult.size)} • {mergedResult.timestamp}
                 </span>
               </div>
@@ -350,14 +400,14 @@ export default function MergePdfPage() {
                   }
                 >
                   <IconDownload size={14} />
-                  <span>Unduh Ulang PDF</span>
+                  <span>{isEn ? 'Re-download PDF' : 'Unduh Ulang PDF'}</span>
                 </button>
                 <button
                   type="button"
                   className="clean-close-result"
                   onClick={() => setMergedResult(null)}
-                  title="Tutup"
-                  aria-label="Tutup"
+                  title={isEn ? 'Close' : 'Tutup'}
+                  aria-label={isEn ? 'Close' : 'Tutup'}
                 >
                   <IconClose size={13} />
                 </button>
@@ -365,8 +415,17 @@ export default function MergePdfPage() {
             </div>
 
             <p className="clean-result-summary">
-              Berkas gabungan <strong>{mergedResult.fileName}</strong> berhasil disatukan dengan total{' '}
-              <strong>{mergedResult.totalPages} halaman</strong> dan telah diunduh ke perangkatmu.
+              {isEn ? (
+                <>
+                  Merged file <strong>{mergedResult.fileName}</strong> has been created with a total of{' '}
+                  <strong>{mergedResult.totalPages} pages</strong> and downloaded to your device.
+                </>
+              ) : (
+                <>
+                  Berkas gabungan <strong>{mergedResult.fileName}</strong> berhasil disatukan dengan total{' '}
+                  <strong>{mergedResult.totalPages} halaman</strong> dan telah diunduh ke perangkatmu.
+                </>
+              )}
             </p>
           </div>
         )}

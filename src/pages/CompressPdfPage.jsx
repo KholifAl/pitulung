@@ -19,8 +19,11 @@ import {
   triggerBrowserDownload,
   truncateFileName,
 } from '../utils/pdfTools'
+import { useLanguage } from '../i18n/LanguageContext'
 
 export default function CompressPdfPage() {
+  const { lang } = useLanguage()
+  const isEn = lang === 'en'
   const [pdfItems, setPdfItems] = useState([])
   const [sliderValue, setSliderValue] = useState(50) // 0: Kualitas Tinggi, 50: Seimbang (Default), 100: Kualitas Rendah
   const [stripMetadata, setStripMetadata] = useState(true)
@@ -42,7 +45,11 @@ export default function CompressPdfPage() {
 
     setErrorMsg('')
     setIsInspecting(true)
-    setProcessStep('Membaca berkas PDF & menganalisis ukuran halaman...')
+    setProcessStep(
+      isEn
+        ? 'Reading PDF files & analyzing page sizes...'
+        : 'Membaca berkas PDF & menganalisis ukuran halaman...'
+    )
 
     const newItems = []
     const errors = []
@@ -52,7 +59,10 @@ export default function CompressPdfPage() {
         const info = await inspectPdfFile(file)
         newItems.push(info)
       } catch (err) {
-        errors.push(err.message || `Gagal membaca "${file.name}".`)
+        errors.push(
+          err.message ||
+            (isEn ? `Failed to read "${file.name}".` : `Gagal membaca "${file.name}".`)
+        )
       }
     }
 
@@ -84,13 +94,21 @@ export default function CompressPdfPage() {
 
   const handleCompressNow = async () => {
     if (pdfItems.length === 0) {
-      setErrorMsg('Pilih minimal 1 berkas PDF terlebih dahulu untuk dikompres.')
+      setErrorMsg(
+        isEn
+          ? 'Please select at least 1 PDF file first to compress.'
+          : 'Pilih minimal 1 berkas PDF terlebih dahulu untuk dikompres.'
+      )
       return
     }
 
     setErrorMsg('')
     setIsCompressing(true)
-    setProcessStep('Mengoptimalkan struktur & mengompres berkas PDF di browsermu...')
+    setProcessStep(
+      isEn
+        ? 'Optimizing structure & compressing PDF files in your browser...'
+        : 'Mengoptimalkan struktur & mengompres berkas PDF di browsermu...'
+    )
 
     try {
       const res = await compressPdfFiles(
@@ -111,7 +129,7 @@ export default function CompressPdfPage() {
 
       setCompressResult({
         ...res,
-        timestamp: new Date().toLocaleTimeString('id-ID', {
+        timestamp: new Date().toLocaleTimeString(isEn ? 'en-US' : 'id-ID', {
           hour: '2-digit',
           minute: '2-digit',
         }),
@@ -120,7 +138,9 @@ export default function CompressPdfPage() {
         resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
       }, 80)
     } catch (err) {
-      setErrorMsg(err.message || 'Gagal mengompres berkas PDF.')
+      setErrorMsg(
+        err.message || (isEn ? 'Failed to compress PDF files.' : 'Gagal mengompres berkas PDF.')
+      )
     } finally {
       setIsCompressing(false)
       setProcessStep('')
@@ -141,11 +161,11 @@ export default function CompressPdfPage() {
   return (
     <section className="clean-hero-section">
       <h1 className="editorial-hero-title">
-        Kompres Ukuran PDF
+        {isEn ? 'Compress PDF Size' : 'Kompres Ukuran PDF'}
       </h1>
 
       <p className="editorial-hero-subtitle">
-        Perkecil ukuran berkas PDF
+        {isEn ? 'Reduce PDF file size right in your browser' : 'Perkecil ukuran berkas PDF'}
       </p>
 
       <div
@@ -195,14 +215,20 @@ export default function CompressPdfPage() {
                 <IconCompressPdf size={24} />
               </div>
               <div className="pdf-dropzone-text">
-                <strong>Tarik &amp; lepas berkas PDF yang ingin dikompres ke sini</strong>
+                <strong>
+                  {isEn
+                    ? 'Drag & drop PDF files to compress here'
+                    : 'Tarik & lepas berkas PDF yang ingin dikompres ke sini'}
+                </strong>
                 <span>
-                  atau klik untuk memilih satu maupun beberapa file PDF dari perangkatmu
+                  {isEn
+                    ? 'or click to select one or multiple PDF files from your device'
+                    : 'atau klik untuk memilih satu maupun beberapa file PDF dari perangkatmu'}
                 </span>
               </div>
               <span className="pdf-dropzone-pill">
                 <IconPlus size={13} />
-                <span>Pilih File PDF</span>
+                <span>{isEn ? 'Select PDF Files' : 'Pilih File PDF'}</span>
               </span>
             </div>
 
@@ -210,7 +236,7 @@ export default function CompressPdfPage() {
               <div className="pdf-action-summary">
                 <span className="pdf-privacy-badge">
                   <IconShield size={14} />
-                  <span>100% Lokal di Browser</span>
+                  <span>{isEn ? '100% Local in Browser' : '100% Lokal di Browser'}</span>
                 </span>
               </div>
             </div>
@@ -221,8 +247,9 @@ export default function CompressPdfPage() {
               <div className="pdf-file-list-head">
                 <div>
                   <span>
-                    Berkas Siap Dikompres ({pdfItems.length} file • {totalPages} Halaman •{' '}
-                    {formatFileSize(totalSize)})
+                    {isEn
+                      ? `Files Ready to Compress (${pdfItems.length} files • ${totalPages} Pages • ${formatFileSize(totalSize)})`
+                      : `Berkas Siap Dikompres (${pdfItems.length} file • ${totalPages} Halaman • ${formatFileSize(totalSize)})`}
                   </span>
                 </div>
                 <div className="empty-doc-left">
@@ -233,7 +260,7 @@ export default function CompressPdfPage() {
                     disabled={isBusy}
                   >
                     <IconUpload size={13} />
-                    <span>Tambah File PDF</span>
+                    <span>{isEn ? 'Add PDF Files' : 'Tambah File PDF'}</span>
                   </button>
                   <button
                     type="button"
@@ -242,16 +269,26 @@ export default function CompressPdfPage() {
                     disabled={isBusy}
                   >
                     <IconTrash size={13} />
-                    <span>Bersihkan Semua</span>
+                    <span>{isEn ? 'Clear All' : 'Bersihkan Semua'}</span>
                   </button>
                 </div>
               </div>
 
-              <ul className="pdf-file-list" aria-label="Daftar berkas PDF yang akan dikompres">
+              <ul
+                className="pdf-file-list"
+                aria-label={
+                  isEn
+                    ? 'List of PDF files to be compressed'
+                    : 'Daftar berkas PDF yang akan dikompres'
+                }
+              >
                 {pdfItems.map((item, idx) => (
                   <li key={item.id} className="pdf-file-item">
                     <div className="pdf-file-item-left">
-                      <span className="pdf-file-order-badge" aria-label={`Berkas ${idx + 1}`}>
+                      <span
+                        className="pdf-file-order-badge"
+                        aria-label={isEn ? `File ${idx + 1}` : `Berkas ${idx + 1}`}
+                      >
                         {idx + 1}
                       </span>
                       <span className="active-doc-icon pdf-item-icon">
@@ -263,10 +300,11 @@ export default function CompressPdfPage() {
                         </strong>
                         <div className="pdf-file-submeta">
                           <span className="active-doc-tag">
-                            {item.pageCount} Halaman
+                            {item.pageCount} {isEn ? 'Pages' : 'Halaman'}
                           </span>
                           <span className="pdf-file-size">
-                            Ukuran Asli: {formatFileSize(item.size)}
+                            {isEn ? 'Original Size: ' : 'Ukuran Asli: '}
+                            {formatFileSize(item.size)}
                           </span>
                         </div>
                       </div>
@@ -278,8 +316,8 @@ export default function CompressPdfPage() {
                         className="doc-remove-btn pdf-delete-btn"
                         onClick={() => handleRemoveItem(item.id)}
                         disabled={isBusy}
-                        title="Hapus file dari daftar"
-                        aria-label={`Hapus ${item.name}`}
+                        title={isEn ? 'Remove file from list' : 'Hapus file dari daftar'}
+                        aria-label={isEn ? `Remove ${item.name}` : `Hapus ${item.name}`}
                       >
                         <IconClose size={12} />
                       </button>
@@ -293,7 +331,7 @@ export default function CompressPdfPage() {
               <div className="pdf-slider-section">
                 <div className="pdf-slider-head">
                   <label className="pdf-mode-label" htmlFor="pdf-compress-slider">
-                    Pilih Tingkat Kompresi PDF:
+                    {isEn ? 'Select PDF Compression Level:' : 'Pilih Tingkat Kompresi PDF:'}
                   </label>
                 </div>
 
@@ -312,7 +350,11 @@ export default function CompressPdfPage() {
                     disabled={isBusy}
                     className="pdf-compress-range-input"
                     style={{ '--slider-fill': `${sliderFillPercent}%` }}
-                    aria-label="Pilih Tingkat Kompresi PDF dari Kualitas Tinggi ke Kualitas Rendah"
+                    aria-label={
+                      isEn
+                        ? 'Select PDF Compression Level from High Quality to Maximum Compression'
+                        : 'Pilih Tingkat Kompresi PDF dari Kualitas Tinggi ke Kualitas Rendah'
+                    }
                   />
 
                   <div className="pdf-slider-Scale-row">
@@ -325,7 +367,7 @@ export default function CompressPdfPage() {
                       }}
                       disabled={isBusy}
                     >
-                      Kualitas Tinggi
+                      {isEn ? 'High Quality' : 'Kualitas Tinggi'}
                     </button>
                     <button
                       type="button"
@@ -338,7 +380,7 @@ export default function CompressPdfPage() {
                       }}
                       disabled={isBusy}
                     >
-                      Seimbang
+                      {isEn ? 'Balanced' : 'Seimbang'}
                     </button>
                     <button
                       type="button"
@@ -349,15 +391,21 @@ export default function CompressPdfPage() {
                       }}
                       disabled={isBusy}
                     >
-                      Kualitas Rendah
+                      {isEn ? 'Low Quality' : 'Kualitas Rendah'}
                     </button>
                   </div>
                 </div>
               </div>
 
               <div className="pdf-compress-options-row">
-                <span className="pdf-mode-label">Opsi Optimasi Tambahan:</span>
-                <div className="pdf-compress-toggles" role="group" aria-label="Opsi optimasi PDF">
+                <span className="pdf-mode-label">
+                  {isEn ? 'Additional Optimization Options:' : 'Opsi Optimasi Tambahan:'}
+                </span>
+                <div
+                  className="pdf-compress-toggles"
+                  role="group"
+                  aria-label={isEn ? 'PDF optimization options' : 'Opsi optimasi PDF'}
+                >
                   <button
                     type="button"
                     role="checkbox"
@@ -373,7 +421,7 @@ export default function CompressPdfPage() {
                       <span className="pct-check-box" aria-hidden="true">
                         {stripMetadata && <IconCheck size={11} />}
                       </span>
-                      <strong>Hapus Objek Tak Terpakai</strong>
+                      <strong>{isEn ? 'Remove Unused Objects' : 'Hapus Objek Tak Terpakai'}</strong>
                     </span>
                     <span className="pct-saving-tag">
                       ~ -{formatFileSize(estimation.unusedSavedBytes)}
@@ -395,7 +443,7 @@ export default function CompressPdfPage() {
                       <span className="pct-check-box" aria-hidden="true">
                         {grayscaleImages && <IconCheck size={11} />}
                       </span>
-                      <strong>Hitam-Putih (Grayscale)</strong>
+                      <strong>{isEn ? 'Black & White (Grayscale)' : 'Hitam-Putih (Grayscale)'}</strong>
                     </span>
                     <span className="pct-saving-tag">
                       ~ -{formatFileSize(estimation.grayscaleSavedBytes)}
@@ -407,19 +455,21 @@ export default function CompressPdfPage() {
 
             <div className="pdf-total-estimate-bar">
               <div className="pteb-left">
-                <span className="pteb-label">Estimasi Total Ukuran Akhir:</span>
+                <span className="pteb-label">
+                  {isEn ? 'Estimated Total Final Size:' : 'Estimasi Total Ukuran Akhir:'}
+                </span>
                 <div className="pteb-values">
                   <span className="pteb-orig">{formatFileSize(estimation.totalOriginalSize)}</span>
                   <span className="pteb-arrow" aria-hidden="true">&rarr;</span>
                   <strong className="pteb-final">~{formatFileSize(estimation.estimatedFinalSize)}</strong>
                   <span className="pdf-saved-pill">
-                    Berkurang ~{formatFileSize(estimation.totalSavedBytes)} (-{estimation.estimatedSavedPercent}%)
+                    {isEn ? 'Reduced by' : 'Berkurang'} ~{formatFileSize(estimation.totalSavedBytes)} (-{estimation.estimatedSavedPercent}%)
                   </span>
                 </div>
               </div>
               <span className="pdf-privacy-badge">
                 <IconShield size={14} />
-                <span>100% Lokal di Browser</span>
+                <span>{isEn ? '100% Local in Browser' : '100% Lokal di Browser'}</span>
               </span>
             </div>
 
@@ -432,10 +482,16 @@ export default function CompressPdfPage() {
               >
                 <span>
                   {isCompressing
-                    ? 'Mengompres PDF...'
+                    ? isEn
+                      ? 'Compressing PDF...'
+                      : 'Mengompres PDF...'
                     : pdfItems.length > 1
-                      ? `Kompres ${pdfItems.length} PDF Sekarang`
-                      : 'Kompres PDF Sekarang'}
+                      ? isEn
+                        ? `Compress ${pdfItems.length} PDFs Now`
+                        : `Kompres ${pdfItems.length} PDF Sekarang`
+                      : isEn
+                        ? 'Compress PDF Now'
+                        : 'Kompres PDF Sekarang'}
                 </span>
                 <span className="submit-arrow-circle">
                   <IconArrowUpRight size={16} />
@@ -454,7 +510,10 @@ export default function CompressPdfPage() {
         {isBusy && (
           <div className="clean-loading-bar" role="status">
             <div className="clean-loader-pulse" />
-            <span>{processStep || 'Memproses kompresi dokumen PDF...'}</span>
+            <span>
+              {processStep ||
+                (isEn ? 'Processing PDF compression...' : 'Memproses kompresi dokumen PDF...')}
+            </span>
           </div>
         )}
 
@@ -464,18 +523,20 @@ export default function CompressPdfPage() {
               <div className="clean-result-meta">
                 <span className="clean-badge-done">
                   <IconCheck size={13} />
-                  <span>Selesai &amp; Otomatis Diunduh</span>
+                  <span>{isEn ? 'Completed & Auto-Downloaded' : 'Selesai & Otomatis Diunduh'}</span>
                 </span>
                 <span className="clean-result-info">
                   <strong>{formatFileSize(compressResult.totalOriginalSize)}</strong> &rarr;{' '}
                   <strong>{formatFileSize(compressResult.totalCompressedSize)}</strong> •{' '}
                   {compressResult.totalSavedBytes > 0 ? (
                     <span className="pdf-saved-pill">
-                      Hemat {compressResult.totalSavedPercent}% (
+                      {isEn ? 'Saved' : 'Hemat'} {compressResult.totalSavedPercent}% (
                       {formatFileSize(compressResult.totalSavedBytes)})
                     </span>
                   ) : (
-                    <span className="pdf-saved-pill is-neutral">Ukuran Sudah Optimal</span>
+                    <span className="pdf-saved-pill is-neutral">
+                      {isEn ? 'Already Optimal Size' : 'Ukuran Sudah Optimal'}
+                    </span>
                   )}{' '}
                   • {compressResult.timestamp}
                 </span>
@@ -495,7 +556,7 @@ export default function CompressPdfPage() {
                     }
                   >
                     <IconDownload size={14} />
-                    <span>Unduh Ulang PDF</span>
+                    <span>{isEn ? 'Re-download PDF' : 'Unduh Ulang PDF'}</span>
                   </button>
                 )}
 
@@ -512,7 +573,7 @@ export default function CompressPdfPage() {
                     }
                   >
                     <IconDownload size={14} />
-                    <span>Unduh Semua (.zip)</span>
+                    <span>{isEn ? 'Download All (.zip)' : 'Unduh Semua (.zip)'}</span>
                   </button>
                 )}
 
@@ -520,8 +581,8 @@ export default function CompressPdfPage() {
                   type="button"
                   className="clean-close-result"
                   onClick={() => setCompressResult(null)}
-                  title="Tutup"
-                  aria-label="Tutup"
+                  title={isEn ? 'Close' : 'Tutup'}
+                  aria-label={isEn ? 'Close' : 'Tutup'}
                 >
                   <IconClose size={13} />
                 </button>
@@ -531,11 +592,26 @@ export default function CompressPdfPage() {
             <p className="clean-result-summary">
               {compressResult.fileCount === 1 && compressResult.primaryFile ? (
                 compressResult.totalSavedBytes > 0 ? (
+                  isEn ? (
+                    <>
+                      File <strong>{compressResult.primaryFile.name}</strong> has been compressed from{' '}
+                      <strong>{formatFileSize(compressResult.totalOriginalSize)}</strong> to{' '}
+                      <strong>{formatFileSize(compressResult.totalCompressedSize)}</strong> (reduced by{' '}
+                      <strong>{compressResult.totalSavedPercent}%</strong>).
+                    </>
+                  ) : (
+                    <>
+                      Berkas <strong>{compressResult.primaryFile.name}</strong> berhasil dikompres dari{' '}
+                      <strong>{formatFileSize(compressResult.totalOriginalSize)}</strong> menjadi{' '}
+                      <strong>{formatFileSize(compressResult.totalCompressedSize)}</strong> (berkurang{' '}
+                      <strong>{compressResult.totalSavedPercent}%</strong>).
+                    </>
+                  )
+                ) : isEn ? (
                   <>
-                    Berkas <strong>{compressResult.primaryFile.name}</strong> berhasil dikompres dari{' '}
-                    <strong>{formatFileSize(compressResult.totalOriginalSize)}</strong> menjadi{' '}
-                    <strong>{formatFileSize(compressResult.totalCompressedSize)}</strong> (berkurang{' '}
-                    <strong>{compressResult.totalSavedPercent}%</strong>).
+                    File <strong>{compressResult.primaryFile.name}</strong> is already at its most
+                    efficient size (<strong>{formatFileSize(compressResult.totalCompressedSize)}</strong>)
+                    and ready to use.
                   </>
                 ) : (
                   <>
@@ -544,6 +620,12 @@ export default function CompressPdfPage() {
                     dan siap digunakan.
                   </>
                 )
+              ) : isEn ? (
+                <>
+                  Successfully compressed <strong>{compressResult.fileCount} PDF files</strong> ({compressResult.totalPages}{' '}
+                  pages) from a total of <strong>{formatFileSize(compressResult.totalOriginalSize)}</strong>{' '}
+                  to <strong>{formatFileSize(compressResult.totalCompressedSize)}</strong>.
+                </>
               ) : (
                 <>
                   Berhasil mengompres <strong>{compressResult.fileCount} berkas PDF</strong> ({compressResult.totalPages}{' '}
@@ -559,7 +641,13 @@ export default function CompressPdfPage() {
                   <div key={f.id} className="pdf-split-output-item">
                     <div className="pdf-split-output-info">
                       <span className="pdf-split-badge">
-                        {f.savedBytes > 0 ? `Hemat ${f.savedPercent}%` : 'Optimal'}
+                        {f.savedBytes > 0
+                          ? isEn
+                            ? `Saved ${f.savedPercent}%`
+                            : `Hemat ${f.savedPercent}%`
+                          : isEn
+                            ? 'Optimal'
+                            : 'Optimal'}
                       </span>
                       <strong className="pdf-split-filename" title={f.name}>
                         {truncateFileName(f.name, 26)}
@@ -574,7 +662,7 @@ export default function CompressPdfPage() {
                       onClick={() => triggerBrowserDownload(f.bytes, f.name, 'application/pdf')}
                     >
                       <IconDownload size={13} />
-                      <span>Unduh</span>
+                      <span>{isEn ? 'Download' : 'Unduh'}</span>
                     </button>
                   </div>
                 ))}
