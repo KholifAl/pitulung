@@ -61,7 +61,7 @@ export default function CompressPdfPage() {
       } catch (err) {
         errors.push(
           err.message ||
-            (isEn ? `Failed to read "${file.name}".` : `Gagal membaca "${file.name}".`)
+          (isEn ? `Failed to read "${file.name}".` : `Gagal membaca "${file.name}".`)
         )
       }
     }
@@ -217,13 +217,13 @@ export default function CompressPdfPage() {
               <div className="pdf-dropzone-text">
                 <strong>
                   {isEn
-                    ? 'Drag & drop PDF files to compress here'
-                    : 'Tarik & lepas berkas PDF yang ingin dikompres ke sini'}
+                    ? 'Drag & drop PDF file here'
+                    : 'Tarik & lepas berkas PDF ke sini'}
                 </strong>
                 <span>
                   {isEn
                     ? 'or click to select one or multiple PDF files from your device'
-                    : 'atau klik untuk memilih satu maupun beberapa file PDF dari perangkatmu'}
+                    : 'atau klik untuk memilih berkas dari perangkatmu'}
                 </span>
               </div>
               <span className="pdf-dropzone-pill">
@@ -236,7 +236,7 @@ export default function CompressPdfPage() {
               <div className="pdf-action-summary">
                 <span className="pdf-privacy-badge">
                   <IconShield size={14} />
-                  <span>{isEn ? '100% Local in Browser' : '100% Lokal di Browser'}</span>
+                  <span>{isEn ? '100% Local - Privacy Protected' : '100% Lokal - Privasi Terjaga'}</span>
                 </span>
               </div>
             </div>
@@ -371,9 +371,8 @@ export default function CompressPdfPage() {
                     </button>
                     <button
                       type="button"
-                      className={`pdf-slider-tick-btn ${
-                        sliderValue >= 34 && sliderValue <= 66 ? 'is-active' : ''
-                      }`}
+                      className={`pdf-slider-tick-btn ${sliderValue >= 34 && sliderValue <= 66 ? 'is-active' : ''
+                        }`}
                       onClick={() => {
                         setSliderValue(50)
                         setCompressResult(null)
@@ -469,7 +468,7 @@ export default function CompressPdfPage() {
               </div>
               <span className="pdf-privacy-badge">
                 <IconShield size={14} />
-                <span>{isEn ? '100% Local in Browser' : '100% Lokal di Browser'}</span>
+                <span>{isEn ? '100% Local ' : '100% Lokal'}</span>
               </span>
             </div>
 

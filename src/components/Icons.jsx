@@ -14,13 +14,27 @@ export function IconArrowUpRight({ size = 15 }) {
   )
 }
 
-export function IconArrowRight({ size = 18 }) {
+export function IconArrowLeft({ size = 18, strokeWidth = 2 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M19 12H5M5 12L11 6M5 12L11 18"
+        stroke="currentColor"
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+export function IconArrowRight({ size = 18, strokeWidth = 2 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
         d="M5 12H19M19 12L13 6M19 12L13 18"
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth={strokeWidth}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -320,6 +334,34 @@ export function IconCompressPdf({ size = 15 }) {
         stroke="currentColor"
         strokeWidth="1.8"
         strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+export function IconSignPdf({ size = 15 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M14 3H6C4.89543 3 4 3.89543 4 5V19C4 20.1046 4.89543 21 6 21H18C19.1046 21 20 20.1046 20 19V13"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M7.5 16.5C8.6 14.8 9.8 14.8 10.6 16.1C11.3 17.2 12.4 16.8 13.5 15.4C14.2 16.2 15.2 16.5 16.5 16.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M18.2 3.3C18.9 2.6 20 2.6 20.7 3.3C21.4 4 21.4 5.1 20.7 5.8L14.8 11.7L12 12.5L12.8 9.7L18.2 3.3Z"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   )

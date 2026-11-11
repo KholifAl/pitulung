@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   BrowserRouter,
   Routes,
@@ -29,6 +29,7 @@ import {
 } from './utils/qris'
 import {
   IconArrowUpRight,
+  IconArrowLeft,
   IconArrowRight,
   IconCilok,
   IconSparkle,
@@ -46,6 +47,7 @@ import {
   IconMergePdf,
   IconSplitPdf,
   IconCompressPdf,
+  IconSignPdf,
   IconChevronDown,
   IconGlobe,
   IconMail,
@@ -56,6 +58,7 @@ import { truncateFileName } from './utils/pdfTools'
 import MergePdfPage from './pages/MergePdfPage'
 import SplitPdfPage from './pages/SplitPdfPage'
 import CompressPdfPage from './pages/CompressPdfPage'
+import SignPdfPage from './pages/SignPdfPage'
 import LegalPage, { LEGAL_PAGES_META, getLegalPagesMeta, AboutPage } from './pages/LegalPage'
 import { LanguageContext } from './i18n/LanguageContext'
 import './App.css'
@@ -161,6 +164,13 @@ const NAV_TOOL_ROUTES_BY_LANG = {
       badge: 'PDF',
       icon: IconCompressPdf,
     },
+    {
+      path: '/sign-pdf',
+      label: 'Tanda Tangani PDF',
+      shortDesc: 'Bubuhkan tanda tangan ke halaman PDF',
+      badge: 'PDF',
+      icon: IconSignPdf,
+    },
   ],
   en: [
     {
@@ -190,6 +200,13 @@ const NAV_TOOL_ROUTES_BY_LANG = {
       shortDesc: 'Reduce PDF file size in browser',
       badge: 'PDF',
       icon: IconCompressPdf,
+    },
+    {
+      path: '/sign-pdf',
+      label: 'Sign PDF',
+      shortDesc: 'Add signature to PDF pages in browser',
+      badge: 'PDF',
+      icon: IconSignPdf,
     },
   ],
 }
@@ -389,6 +406,50 @@ function TinulungAppShell() {
   const resultRef = useRef(null)
   const navMenuRef = useRef(null)
   const langMenuRef = useRef(null)
+  const qfSliderRef = useRef(null)
+  const [qfSlideIndex, setQfSlideIndex] = useState(0)
+  const [isQfPaused, setIsQfPaused] = useState(false)
+
+  const scrollToQfSlide = useCallback((targetIndex) => {
+    const track = qfSliderRef.current
+    if (!track) return
+    const firstCard = track.querySelector('.quick-feature-card')
+    if (!firstCard) return
+    const cardW = firstCard.getBoundingClientRect().width
+    const gap = 14
+    const maxScroll = Math.max(0, track.scrollWidth - track.clientWidth)
+    const visibleCount = Math.max(1, Math.round(track.clientWidth / (cardW + gap)))
+    const maxIndex = Math.max(0, 5 - visibleCount)
+    const normalized = maxIndex > 0 ? ((targetIndex % (maxIndex + 1)) + (maxIndex + 1)) % (maxIndex + 1) : 0
+    const nextLeft = Math.min(maxScroll, Math.round(normalized * (cardW + gap)))
+    track.scrollTo({ left: nextLeft, behavior: 'smooth' })
+    setQfSlideIndex(normalized)
+  }, [])
+
+  const handleQfTrackScroll = useCallback(() => {
+    const track = qfSliderRef.current
+    if (!track) return
+    const firstCard = track.querySelector('.quick-feature-card')
+    if (!firstCard) return
+    const step = firstCard.getBoundingClientRect().width + 14
+    if (step <= 0) return
+    const idx = Math.round(track.scrollLeft / step)
+    setQfSlideIndex(idx)
+  }, [])
+
+  useEffect(() => {
+    if (location.pathname !== '/' || isQfPaused) return undefined
+    const prefersReduced =
+      typeof window !== 'undefined' &&
+      window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (prefersReduced) return undefined
+
+    const timer = setInterval(() => {
+      scrollToQfSlide(qfSlideIndex + 1)
+    }, 4500)
+    return () => clearInterval(timer)
+  }, [location.pathname, isQfPaused, qfSlideIndex, scrollToQfSlide])
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -1250,95 +1311,170 @@ function TinulungAppShell() {
         )}
       </div>
 
-      {/* THREE FEATURE CARDS ROW BELOW INPUT */}
-      <div className="quick-features-grid">
-        <button
-          type="button"
-          className="quick-feature-card"
-          onClick={() => handleQuickDemo('dokumen')}
-        >
-          <div className="qf-top">
-            <span className="qf-number">{isEn ? 'SMART DOCUMENT' : 'DOKUMEN PINTAR'}</span>
-            <span className="qf-arrow">
-              <IconArrowUpRight size={14} />
-            </span>
-          </div>
-          <h3>
-            {isLocalMode
-              ? isEn
-                ? 'Extract Document Data'
-                : 'Ekstrak Data Dokumen'
-              : isEn
-                ? 'Ask & Table Document'
-                : 'Tanya & Tabel Dokumen'}
-          </h3>
-          <p>
-            {isLocalMode
-              ? isEn
-                ? 'Upload PDF or CSV and pull tables, numbers & key dates into a clean layout.'
-                : 'Upload PDF atau CSV, tarik tabel, angka & tanggal pentingnya jadi rapi.'
-              : isEn
-                ? 'Upload PDF or CSV, ask about its contents and turn them into a clean table.'
-                : 'Upload PDF atau CSV, tanya isinya dan ubah jadi tabel rapi.'}
-          </p>
-        </button>
+      {/* HORIZONTAL SLIDER: SHOWS 3 MAIN FEATURE CARDS AT A TIME WITH LEFT/RIGHT CONTROLS */}
+      <div
+        className="quick-features-slider-stage"
+        onMouseEnter={() => setIsQfPaused(true)}
+        onMouseLeave={() => setIsQfPaused(false)}
+        onFocus={() => setIsQfPaused(true)}
+        onBlur={() => setIsQfPaused(false)}
+        onTouchStart={() => setIsQfPaused(true)}
+        onTouchEnd={() => setIsQfPaused(false)}
+      >
+        <div className="qf-slider-track-wrap">
+          <button
+            type="button"
+            className="qf-slider-nav-btn is-prev"
+            onClick={() => scrollToQfSlide(qfSlideIndex - 1)}
+            aria-label={isEn ? 'Previous features' : 'Geser ke fitur sebelumnya'}
+            title={isEn ? 'Slide Left' : 'Geser Kiri'}
+          >
+            <IconArrowLeft size={16} strokeWidth={2.75} />
+          </button>
 
-        <button
-          type="button"
-          className="quick-feature-card"
-          onClick={() => navigate('/merge-pdf')}
-        >
-          <div className="qf-top">
-            <span className="qf-number">{isEn ? 'MERGE PDF' : 'GABUNG PDF'}</span>
-            <span className="qf-arrow">
-              <IconArrowUpRight size={14} />
-            </span>
-          </div>
-          <h3>{isEn ? 'Merge PDF Documents' : 'Gabung Dokumen PDF'}</h3>
-          <p>
-            {isEn
-              ? 'Arrange multiple PDF files in order and combine them into one document right in your browser.'
-              : 'Susun urutan beberapa berkas PDF dan satukan jadi satu dokumen rapi langsung di browser.'}
-          </p>
-        </button>
+          <div
+            ref={qfSliderRef}
+            className="quick-features-grid"
+            onScroll={handleQfTrackScroll}
+          >
+            <button
+              type="button"
+              className="quick-feature-card"
+              onClick={() => handleQuickDemo('dokumen')}
+            >
+              <div className="qf-top">
+                <span className="qf-number">{isEn ? 'SMART DOCUMENT' : 'DOKUMEN PINTAR'}</span>
+                <span className="qf-arrow">
+                  <IconArrowUpRight size={14} />
+                </span>
+              </div>
+              <h3>
+                {isLocalMode
+                  ? isEn
+                    ? 'Extract Document Data'
+                    : 'Ekstrak Data Dokumen'
+                  : isEn
+                    ? 'Ask & Table Document'
+                    : 'Tanya & Tabel Dokumen'}
+              </h3>
+              <p>
+                {isLocalMode
+                  ? isEn
+                    ? 'Upload PDF or CSV and pull tables, numbers & key dates into a clean layout.'
+                    : 'Upload PDF atau CSV, tarik tabel, angka & tanggal pentingnya jadi rapi.'
+                  : isEn
+                    ? 'Upload PDF or CSV, ask about its contents and turn them into a clean table.'
+                    : 'Upload PDF atau CSV, tanya isinya dan ubah jadi tabel rapi.'}
+              </p>
+            </button>
 
-        <button
-          type="button"
-          className="quick-feature-card"
-          onClick={() => navigate('/split-pdf')}
-        >
-          <div className="qf-top">
-            <span className="qf-number">{isEn ? 'SPLIT PDF' : 'PISAH PDF'}</span>
-            <span className="qf-arrow">
-              <IconArrowUpRight size={14} />
-            </span>
-          </div>
-          <h3>{isEn ? 'Split PDF Pages' : 'Pisahkan Halaman PDF'}</h3>
-          <p>
-            {isEn
-              ? 'Extract specific page ranges or split every page into separate PDF files.'
-              : 'Ambil rentang halaman tertentu atau pecah setiap halaman menjadi file PDF terpisah.'}
-          </p>
-        </button>
+            <button
+              type="button"
+              className="quick-feature-card"
+              onClick={() => navigate('/merge-pdf')}
+            >
+              <div className="qf-top">
+                <span className="qf-number">{isEn ? 'MERGE PDF' : 'GABUNG PDF'}</span>
+                <span className="qf-arrow">
+                  <IconArrowUpRight size={14} />
+                </span>
+              </div>
+              <h3>{isEn ? 'Merge PDF Documents' : 'Gabung Dokumen PDF'}</h3>
+              <p>
+                {isEn
+                  ? 'Arrange multiple PDF files in order and combine them into one document right in your browser.'
+                  : 'Susun urutan beberapa berkas PDF dan satukan jadi satu dokumen rapi langsung di browser.'}
+              </p>
+            </button>
 
-        <button
-          type="button"
-          className="quick-feature-card"
-          onClick={() => navigate('/compress-pdf')}
-        >
-          <div className="qf-top">
-            <span className="qf-number">{isEn ? 'COMPRESS PDF' : 'KOMPRES PDF'}</span>
-            <span className="qf-arrow">
-              <IconArrowUpRight size={14} />
-            </span>
+            <button
+              type="button"
+              className="quick-feature-card"
+              onClick={() => navigate('/split-pdf')}
+            >
+              <div className="qf-top">
+                <span className="qf-number">{isEn ? 'SPLIT PDF' : 'PISAH PDF'}</span>
+                <span className="qf-arrow">
+                  <IconArrowUpRight size={14} />
+                </span>
+              </div>
+              <h3>{isEn ? 'Split PDF Pages' : 'Pisahkan Halaman PDF'}</h3>
+              <p>
+                {isEn
+                  ? 'Extract specific page ranges or split every page into separate PDF files.'
+                  : 'Ambil rentang halaman tertentu atau pecah setiap halaman menjadi file PDF terpisah.'}
+              </p>
+            </button>
+
+            <button
+              type="button"
+              className="quick-feature-card"
+              onClick={() => navigate('/compress-pdf')}
+            >
+              <div className="qf-top">
+                <span className="qf-number">{isEn ? 'COMPRESS PDF' : 'KOMPRES PDF'}</span>
+                <span className="qf-arrow">
+                  <IconArrowUpRight size={14} />
+                </span>
+              </div>
+              <h3>{isEn ? 'Reduce PDF Size' : 'Perkecil Ukuran PDF'}</h3>
+              <p>
+                {isEn
+                  ? 'Select PDF files and adjust compression level to shrink file size in your browser.'
+                  : 'Pilih berkas PDF lalu atur tingkat kompresi untuk memangkas ukuran file di browser.'}
+              </p>
+            </button>
+
+            <button
+              type="button"
+              className="quick-feature-card"
+              onClick={() => navigate('/sign-pdf')}
+            >
+              <div className="qf-top">
+                <span className="qf-number">{isEn ? 'SIGN PDF' : 'TANDA TANGANI PDF'}</span>
+                <span className="qf-arrow">
+                  <IconArrowUpRight size={14} />
+                </span>
+              </div>
+              <h3>{isEn ? 'Sign PDF Pages' : 'Tanda Tangani PDF'}</h3>
+              <p>
+                {isEn
+                  ? 'Draw a signature or upload a signature image and apply to all pages or any page interval.'
+                  : 'Gambar tanda tangan langsung atau unggah file tanda tangan ke semua halaman maupun interval halaman.'}
+              </p>
+            </button>
           </div>
-          <h3>{isEn ? 'Reduce PDF Size' : 'Perkecil Ukuran PDF'}</h3>
-          <p>
-            {isEn
-              ? 'Select PDF files and adjust compression level to shrink file size in your browser.'
-              : 'Pilih berkas PDF lalu atur tingkat kompresi untuk memangkas ukuran file di browser.'}
-          </p>
-        </button>
+
+          <button
+            type="button"
+            className="qf-slider-nav-btn is-next"
+            onClick={() => scrollToQfSlide(qfSlideIndex + 1)}
+            aria-label={isEn ? 'Next features' : 'Geser ke fitur berikutnya'}
+            title={isEn ? 'Slide Right' : 'Geser Kanan'}
+          >
+            <IconArrowRight size={16} strokeWidth={2.75} />
+          </button>
+        </div>
+
+        <div
+          className="qf-slider-dots"
+          role="tablist"
+          aria-label={isEn ? 'Feature slider position' : 'Posisi slider fitur'}
+        >
+          {[0, 1, 2].map((dotIdx) => (
+            <button
+              key={dotIdx}
+              type="button"
+              role="tab"
+              aria-selected={qfSlideIndex === dotIdx}
+              className={`qf-slider-dot ${qfSlideIndex === dotIdx ? 'is-active' : ''}`}
+              onClick={() => scrollToQfSlide(dotIdx)}
+              aria-label={
+                isEn ? `Show feature group ${dotIdx + 1}` : `Tampilkan grup fitur ${dotIdx + 1}`
+              }
+            />
+          ))}
+        </div>
       </div>
     </section>
   )
@@ -1452,6 +1588,7 @@ function TinulungAppShell() {
             <Route path="/merge-pdf" element={<MergePdfPage />} />
             <Route path="/split-pdf" element={<SplitPdfPage />} />
             <Route path="/compress-pdf" element={<CompressPdfPage />} />
+            <Route path="/sign-pdf" element={<SignPdfPage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/tentang" element={<AboutPage />} />
             {LEGAL_PAGES_META.map((page) => (
@@ -1926,20 +2063,6 @@ function TinulungAppShell() {
                           className={`provider-chip ${isSelected ? 'is-active' : ''}`}
                           onClick={() => handleProviderChange(p.id)}
                         >
-                          <div className="provider-chip-top">
-                            <span className="provider-chip-tag">
-                              {p.id === 'local'
-                                ? isEn
-                                  ? 'No AI'
-                                  : 'Tanpa AI'
-                                : p.id === 'openclaw'
-                                  ? isEn
-                                    ? 'Local Server'
-                                    : 'Server Lokal'
-                                  : 'Cloud AI'}
-                            </span>
-                            <span className="provider-radio-dot" aria-hidden="true" />
-                          </div>
                           <strong className="provider-chip-title">
                             {isEn && p.id === 'local'
                               ? 'Default (Instant, without AI)'
@@ -1947,6 +2070,7 @@ function TinulungAppShell() {
                                 ? 'OpenClaw (Local Server)'
                                 : p.label}
                           </strong>
+                          <span className="provider-radio-dot" aria-hidden="true" />
                         </button>
                       )
                     })}

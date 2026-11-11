@@ -202,13 +202,13 @@ export default function SplitPdfPage() {
               <div className="pdf-dropzone-text">
                 <strong>
                   {isEn
-                    ? 'Drag & drop 1 PDF file here'
-                    : 'Tarik & lepas 1 berkas PDF ke sini'}
+                    ? 'Drag & drop PDF file here'
+                    : 'Tarik & lepas berkas PDF ke sini'}
                 </strong>
                 <span>
                   {isEn
                     ? 'or click to select a PDF document from your device'
-                    : 'atau klik untuk memilih dokumen PDF dari perangkatmu'}
+                    : 'atau klik untuk memilih berkas dari perangkatmu'}
                 </span>
               </div>
               <span className="pdf-dropzone-pill">
@@ -223,8 +223,8 @@ export default function SplitPdfPage() {
                   <IconShield size={14} />
                   <span>
                     {isEn
-                      ? '100% Local in Browser • Privacy Protected'
-                      : '100% Lokal di Browser • Privasi Terjaga'}
+                      ? '100% Local - Privacy Protected'
+                      : '100% Lokal - Privasi Terjaga'}
                   </span>
                 </span>
               </div>

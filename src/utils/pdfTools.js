@@ -95,6 +95,7 @@ export async function inspectPdfFile(file) {
     }
 
     const analysis = analyzePdfStructure(pdfDoc)
+    const pagesMeta = extractPagesMeta(pdfDoc)
 
     return {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -102,6 +103,7 @@ export async function inspectPdfFile(file) {
       name: file.name,
       size: file.size,
       pageCount,
+      pagesMeta,
       imageBytes: analysis.imageBytes,
       imageCount: analysis.imageCount,
       imageSummaries: analysis.imageSummaries,
@@ -1731,5 +1733,1510 @@ export async function compressPdfFiles(items = [], options = {}, onProgress) {
     files: results,
     zipBlob,
     zipFileName,
+  }
+}
+
+function decodePdfStringBytes(raw = '') {
+  let out = ''
+  for (let i = 0; i < raw.length; i += 1) {
+    const ch = raw[i]
+    if (ch === '\\' && i + 1 < raw.length) {
+      const next = raw[i + 1]
+      if (next === '\r' && raw[i + 2] === '\n') {
+        i += 2
+        continue
+      }
+      if (next === '\n' || next === '\r') {
+        i += 1
+        continue
+      }
+      if (next >= '0' && next <= '7') {
+        let oct = next
+        i += 1
+        if (i + 1 < raw.length && raw[i + 1] >= '0' && raw[i + 1] <= '7') {
+          oct += raw[(i += 1)]
+        }
+        if (i + 1 < raw.length && raw[i + 1] >= '0' && raw[i + 1] <= '7') {
+          oct += raw[(i += 1)]
+        }
+        out += String.fromCharCode(parseInt(oct, 8) & 0xff)
+      } else {
+        i += 1
+        if (next === 'n') out += '\n'
+        else if (next === 'r') out += '\r'
+        else if (next === 't') out += '\t'
+        else if (next === 'b') out += '\b'
+        else if (next === 'f') out += '\f'
+        else out += next
+      }
+    } else {
+      out += ch
+    }
+  }
+  return out
+}
+
+function decodeHexPdfBytes(hexRaw = '') {
+  const clean = hexRaw.replace(/[^0-9A-Fa-f]/g, '')
+  if (!clean) return ''
+  let out = ''
+  for (let i = 0; i < clean.length; i += 2) {
+    const pair = clean.slice(i, i + 2).padEnd(2, '0')
+    out += String.fromCharCode(parseInt(pair, 16) & 0xff)
+  }
+  return out
+}
+
+function hexToUnicodeString(hexStr = '') {
+  const clean = hexStr.replace(/[^0-9A-Fa-f]/g, '')
+  if (!clean) return ''
+  if (clean.length <= 2) {
+    return String.fromCharCode(parseInt(clean, 16))
+  }
+  let out = ''
+  for (let i = 0; i < clean.length; i += 4) {
+    const chunk = clean.slice(i, i + 4)
+    const code = parseInt(chunk, 16)
+    if (!Number.isNaN(code) && code > 0) {
+      out += String.fromCharCode(code)
+    }
+  }
+  return out
+}
+
+function parseToUnicodeCMap(cmapText = '') {
+  const map = new Map()
+  let isTwoByte = false
+
+  const bfcharRegex = /beginbfchar([\s\S]*?)endbfchar/g
+  let match
+  while ((match = bfcharRegex.exec(cmapText)) !== null) {
+    const block = match[1]
+    const pairRegex = /<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>/g
+    let pair
+    while ((pair = pairRegex.exec(block)) !== null) {
+      const srcHex = pair[1]
+      const dstHex = pair[2]
+      if (srcHex.length >= 4) isTwoByte = true
+      const code = parseInt(srcHex, 16)
+      const str = hexToUnicodeString(dstHex)
+      if (!Number.isNaN(code) && str) {
+        map.set(code, str)
+      }
+    }
+  }
+
+  const bfrangeRegex = /beginbfrange([\s\S]*?)endbfrange/g
+  while ((match = bfrangeRegex.exec(cmapText)) !== null) {
+    const block = match[1]
+    const rangeRegex = /<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*(?:<([0-9A-Fa-f]+)>|\[([\s\S]*?)\])/g
+    let rng
+    while ((rng = rangeRegex.exec(block)) !== null) {
+      const startHex = rng[1]
+      const endHex = rng[2]
+      if (startHex.length >= 4) isTwoByte = true
+      const startCode = parseInt(startHex, 16)
+      const endCode = parseInt(endHex, 16)
+      if (Number.isNaN(startCode) || Number.isNaN(endCode) || endCode < startCode) continue
+      const count = Math.min(512, endCode - startCode + 1)
+
+      if (rng[3] !== undefined) {
+        const baseStr = hexToUnicodeString(rng[3])
+        const baseCodePoint = baseStr ? baseStr.charCodeAt(baseStr.length - 1) : 0
+        const prefix = baseStr.length > 1 ? baseStr.slice(0, -1) : ''
+        for (let offset = 0; offset < count; offset += 1) {
+          map.set(startCode + offset, prefix + String.fromCharCode(baseCodePoint + offset))
+        }
+      } else if (rng[4] !== undefined) {
+        const arrHexRegex = /<([0-9A-Fa-f]+)>/g
+        let itemMatch
+        let offset = 0
+        while ((itemMatch = arrHexRegex.exec(rng[4])) !== null && offset < count) {
+          const str = hexToUnicodeString(itemMatch[1])
+          if (str) map.set(startCode + offset, str)
+          offset += 1
+        }
+      }
+    }
+  }
+
+  return { map, isTwoByte }
+}
+
+const STANDARD_GLYPH_NAME_MAP = {
+  space: ' ',
+  exclam: '!',
+  quotedbl: '"',
+  numbersign: '#',
+  dollar: '$',
+  percent: '%',
+  ampersand: '&',
+  quotesingle: "'",
+  quoteright: "'",
+  quoteleft: "'",
+  parenleft: '(',
+  parenright: ')',
+  asterisk: '*',
+  plus: '+',
+  comma: ',',
+  hyphen: '-',
+  minus: '-',
+  endash: '-',
+  emdash: '-',
+  period: '.',
+  slash: '/',
+  zero: '0',
+  one: '1',
+  two: '2',
+  three: '3',
+  four: '4',
+  five: '5',
+  six: '6',
+  seven: '7',
+  eight: '8',
+  nine: '9',
+  colon: ':',
+  semicolon: ';',
+  less: '<',
+  equal: '=',
+  greater: '>',
+  question: '?',
+  at: '@',
+  bracketleft: '[',
+  backslash: '\\',
+  bracketright: ']',
+  underscore: '_',
+  braceleft: '{',
+  bar: '|',
+  braceright: '}',
+  bullet: '•',
+}
+
+function extractFontsFromResources(resourcesDict, context, targetMap = new Map()) {
+  if (!(resourcesDict instanceof PDFDict)) return targetMap
+  try {
+    const fontDictObj = context.lookup(resourcesDict.get(PDFName.of('Font')))
+    if (!(fontDictObj instanceof PDFDict)) return targetMap
+
+    const entries = fontDictObj.entries()
+    for (let i = 0; i < entries.length; i += 1) {
+      const [keyName, fontRef] = entries[i]
+      const cleanKey = keyName.decodeText ? keyName.decodeText() : String(keyName).replace(/^\//, '')
+      const fontDict = context.lookup(fontRef)
+      if (!(fontDict instanceof PDFDict)) continue
+
+      const subtypeObj = fontDict.lookup(PDFName.of('Subtype'))
+      const subtypeStr = subtypeObj ? String(subtypeObj) : ''
+      const baseFontObj = fontDict.lookup(PDFName.of('BaseFont'))
+      const baseFontStr = baseFontObj ? String(baseFontObj) : ''
+      const isBold = /bold|black|heavy|demi|semibold/i.test(`${cleanKey} ${baseFontStr}`)
+
+      const encodingObj = context.lookup(fontDict.get(PDFName.of('Encoding')))
+      const encodingStr = encodingObj ? String(encodingObj) : ''
+      let isTwoByte =
+        subtypeStr.includes('Type0') ||
+        /Identity-H|Identity-V/i.test(encodingStr)
+
+      let toUnicodeMap = new Map()
+      const toUniObj = context.lookup(fontDict.get(PDFName.of('ToUnicode')))
+      if (toUniObj instanceof PDFRawStream) {
+        try {
+          const bytes = decodeStreamSafely(toUniObj)
+          const cmapStr = new TextDecoder('latin1').decode(bytes)
+          const parsed = parseToUnicodeCMap(cmapStr)
+          toUnicodeMap = parsed.map
+          if (parsed.isTwoByte) isTwoByte = true
+        } catch {
+          // Ignore unreadable ToUnicode stream
+        }
+      }
+
+      const differencesMap = new Map()
+      if (encodingObj instanceof PDFDict) {
+        const diffArr = context.lookup(encodingObj.get(PDFName.of('Differences')))
+        if (diffArr instanceof PDFArray) {
+          let codeCursor = 0
+          for (let d = 0; d < diffArr.size(); d += 1) {
+            const elem = context.lookup(diffArr.get(d))
+            if (elem instanceof PDFNumber) {
+              codeCursor = elem.asNumber()
+            } else if (elem instanceof PDFName) {
+              const gName = elem.decodeText ? elem.decodeText() : String(elem).replace(/^\//, '')
+              if (gName.length === 1) {
+                differencesMap.set(codeCursor, gName)
+              } else if (STANDARD_GLYPH_NAME_MAP[gName]) {
+                differencesMap.set(codeCursor, STANDARD_GLYPH_NAME_MAP[gName])
+              } else if (/^uni([0-9A-Fa-f]{4})$/.test(gName)) {
+                differencesMap.set(
+                  codeCursor,
+                  String.fromCharCode(parseInt(gName.slice(3), 16))
+                )
+              }
+              codeCursor += 1
+            }
+          }
+        }
+      }
+
+      targetMap.set(cleanKey, {
+        name: cleanKey,
+        baseFont: baseFontStr,
+        isBold,
+        isTwoByte,
+        toUnicodeMap,
+        differencesMap,
+      })
+    }
+  } catch {
+    // Ignore font resource lookup failure
+  }
+  return targetMap
+}
+
+function decodeRawBytesWithFont(rawBytesStr = '', fontInfo = null) {
+  if (!rawBytesStr) return ''
+  const len = rawBytesStr.length
+
+  if (fontInfo && fontInfo.toUnicodeMap && fontInfo.toUnicodeMap.size > 0) {
+    const { toUnicodeMap, isTwoByte } = fontInfo
+    let out = ''
+    if (isTwoByte && len >= 2 && len % 2 === 0) {
+      for (let i = 0; i < len; i += 2) {
+        const code16 = ((rawBytesStr.charCodeAt(i) & 0xff) << 8) | (rawBytesStr.charCodeAt(i + 1) & 0xff)
+        if (toUnicodeMap.has(code16)) {
+          out += toUnicodeMap.get(code16)
+        } else {
+          const single = toUnicodeMap.get(rawBytesStr.charCodeAt(i + 1) & 0xff)
+          if (single) out += single
+          else if (code16 >= 32 && code16 <= 591) out += String.fromCharCode(code16)
+        }
+      }
+      if (out.trim()) return cleanDecodedText(out)
+    }
+
+    out = ''
+    for (let i = 0; i < len; i += 1) {
+      const code8 = rawBytesStr.charCodeAt(i) & 0xff
+      if (toUnicodeMap.has(code8)) {
+        out += toUnicodeMap.get(code8)
+      } else if (fontInfo.differencesMap?.has(code8)) {
+        out += fontInfo.differencesMap.get(code8)
+      } else if (code8 >= 32) {
+        out += String.fromCharCode(code8)
+      }
+    }
+    if (out.trim()) return cleanDecodedText(out)
+  }
+
+  if (fontInfo && fontInfo.differencesMap && fontInfo.differencesMap.size > 0) {
+    let out = ''
+    for (let i = 0; i < len; i += 1) {
+      const code8 = rawBytesStr.charCodeAt(i) & 0xff
+      if (fontInfo.differencesMap.has(code8)) {
+        out += fontInfo.differencesMap.get(code8)
+      } else if (code8 >= 32) {
+        out += String.fromCharCode(code8)
+      }
+    }
+    if (out.trim()) return cleanDecodedText(out)
+  }
+
+  if (len >= 2 && len % 2 === 0) {
+    let zeroHighCount = 0
+    for (let i = 0; i < len; i += 2) {
+      if (rawBytesStr.charCodeAt(i) === 0) zeroHighCount += 1
+    }
+    if (zeroHighCount >= len / 4) {
+      let utf16Out = ''
+      let shiftedOut = ''
+      for (let i = 0; i < len; i += 2) {
+        const code16 = ((rawBytesStr.charCodeAt(i) & 0xff) << 8) | (rawBytesStr.charCodeAt(i + 1) & 0xff)
+        if (code16 >= 32 && code16 <= 591) {
+          utf16Out += String.fromCharCode(code16)
+        } else if (code16 >= 3 && code16 <= 95) {
+          shiftedOut += String.fromCharCode(code16 + 29)
+        }
+      }
+      if (utf16Out.trim()) return cleanDecodedText(utf16Out)
+      if (shiftedOut.trim()) return cleanDecodedText(shiftedOut)
+    }
+  }
+
+  return cleanDecodedText(rawBytesStr)
+}
+
+function cleanDecodedText(raw = '') {
+  if (!raw) return ''
+  let sanitized = ''
+  for (let i = 0; i < raw.length; i += 1) {
+    const code = raw.charCodeAt(i)
+    if ((code >= 32 && code <= 126) || (code >= 160 && code <= 591) || code === 8226) {
+      sanitized += raw[i]
+    } else if (code === 9 || code === 10 || code === 13) {
+      sanitized += ' '
+    }
+  }
+  return sanitized.replace(/\s+/g, ' ')
+}
+
+function multiplyPdfMatrix(m1, m2) {
+  return [
+    m1[0] * m2[0] + m1[1] * m2[2],
+    m1[0] * m2[1] + m1[1] * m2[3],
+    m1[2] * m2[0] + m1[3] * m2[2],
+    m1[2] * m2[1] + m1[3] * m2[3],
+    m1[4] * m2[0] + m1[5] * m2[2] + m2[4],
+    m1[4] * m2[1] + m1[5] * m2[3] + m1[5],
+  ]
+}
+
+function applyPdfMatrixToPoint(m, x, y) {
+  return {
+    x: x * m[0] + y * m[2] + m[4],
+    y: x * m[1] + y * m[3] + m[5],
+  }
+}
+
+async function decodeResourcesXObjects(resourcesDict, context, imageMap = new Map(), formMap = new Map(), fontMap = new Map(), depth = 0) {
+  if (!(resourcesDict instanceof PDFDict) || depth > 4) {
+    return { imageMap, formMap, fontMap }
+  }
+
+  extractFontsFromResources(resourcesDict, context, fontMap)
+
+  try {
+    const xObjectDict = context.lookup(resourcesDict.get(PDFName.of('XObject')))
+    if (!(xObjectDict instanceof PDFDict)) {
+      return { imageMap, formMap, fontMap }
+    }
+
+    const entries = xObjectDict.entries()
+    for (let i = 0; i < entries.length; i += 1) {
+      const [keyName, refObj] = entries[i]
+      const cleanKey = keyName.decodeText ? keyName.decodeText() : String(keyName).replace(/^\//, '')
+      const stream = context.lookup(refObj)
+      if (!(stream instanceof PDFRawStream)) continue
+
+      const subtype = stream.dict.lookup(PDFName.of('Subtype'))
+      if (subtype === PDFName.of('Form')) {
+        const formRes = context.lookup(stream.dict.get(PDFName.of('Resources')))
+        let matrix = [1, 0, 0, 1, 0, 0]
+        const matArr = context.lookup(stream.dict.get(PDFName.of('Matrix')))
+        if (matArr instanceof PDFArray && matArr.size() >= 6) {
+          const m = []
+          for (let k = 0; k < 6; k += 1) {
+            const v = context.lookup(matArr.get(k))
+            m.push(v instanceof PDFNumber ? v.asNumber() : k === 0 || k === 3 ? 1 : 0)
+          }
+          matrix = m
+        }
+        formMap.set(cleanKey, { stream, matrix, resources: formRes })
+        if (formRes instanceof PDFDict) {
+          await decodeResourcesXObjects(formRes, context, imageMap, formMap, fontMap, depth + 1)
+        }
+        continue
+      }
+
+      if (subtype !== PDFName.of('Image')) continue
+
+      const width = lookupNumber(stream.dict, 'Width')
+      const height = lookupNumber(stream.dict, 'Height')
+      if (!width || !height || width <= 0 || height <= 0) continue
+
+      const filterNames = getFilterNames(stream.dict)
+      const lastFilter = filterNames[filterNames.length - 1] || ''
+
+      if (isDctFilterName(lastFilter)) {
+        let jpegBytes = null
+        try {
+          jpegBytes = extractJpegBytesFromStream(stream, filterNames)
+        } catch {
+          jpegBytes = null
+        }
+        if (!jpegBytes) continue
+        const blob = new Blob([jpegBytes], { type: 'image/jpeg' })
+        const url = URL.createObjectURL(blob)
+        try {
+          const img = await new Promise((resolve, reject) => {
+            const el = new Image()
+            el.onload = () => resolve(el)
+            el.onerror = reject
+            el.src = url
+          })
+          imageMap.set(cleanKey, img)
+        } catch {
+          // Skip unreadable embedded JPEG
+        } finally {
+          URL.revokeObjectURL(url)
+        }
+      } else if (
+        isDecodableWrapperFilter(lastFilter) ||
+        filterNames.length === 0
+      ) {
+        const bpc = lookupNumber(stream.dict, 'BitsPerComponent') || 8
+        if (bpc !== 8 && bpc !== 16) continue
+        const csInfo = resolveColorSpaceInfo(stream.dict)
+        if (!csInfo || !csInfo.channels) continue
+        let decoded
+        try {
+          decoded = filterNames.length > 0 ? decodeStreamSafely(stream) : stream.contents
+          decoded = unapplyPdfPredictor(decoded, stream.dict, width, height)
+        } catch {
+          continue
+        }
+        if (!decoded || decoded.byteLength === 0) continue
+        if (bpc === 16) {
+          const half = new Uint8Array(Math.floor(decoded.byteLength / 2))
+          for (let hIdx = 0; hIdx < half.length; hIdx += 1) {
+            half[hIdx] = decoded[hIdx * 2]
+          }
+          decoded = half
+        }
+
+        const pixelCount = width * height
+        if (decoded.byteLength < pixelCount) continue
+
+        let smaskBytes = null
+        try {
+          const smaskObj = context.lookup(stream.dict.get(PDFName.of('SMask')))
+          if (smaskObj instanceof PDFRawStream) {
+            const smFilters = getFilterNames(smaskObj.dict)
+            const smRaw = smFilters.length > 0 ? decodeStreamSafely(smaskObj) : smaskObj.contents
+            const smW = lookupNumber(smaskObj.dict, 'Width') || width
+            const smH = lookupNumber(smaskObj.dict, 'Height') || height
+            const smUnpred = unapplyPdfPredictor(smRaw, smaskObj.dict, smW, smH)
+            if (smUnpred && smUnpred.byteLength >= pixelCount) {
+              smaskBytes = smUnpred
+            }
+          }
+        } catch {
+          smaskBytes = null
+        }
+
+        const offCanvas = document.createElement('canvas')
+        offCanvas.width = width
+        offCanvas.height = height
+        const offCtx = offCanvas.getContext('2d')
+        const imgData = offCtx.createImageData(width, height)
+        const dst = imgData.data
+
+        if (csInfo.kind === 'rgb' && decoded.byteLength >= pixelCount * 3) {
+          for (let p = 0, s = 0, d = 0; p < pixelCount; p += 1, s += 3, d += 4) {
+            dst[d] = decoded[s]
+            dst[d + 1] = decoded[s + 1]
+            dst[d + 2] = decoded[s + 2]
+            dst[d + 3] = smaskBytes ? smaskBytes[p] : 255
+          }
+        } else if (csInfo.kind === 'cmyk' && decoded.byteLength >= pixelCount * 4) {
+          for (let p = 0, s = 0, d = 0; p < pixelCount; p += 1, s += 4, d += 4) {
+            const c = decoded[s] / 255
+            const m = decoded[s + 1] / 255
+            const y = decoded[s + 2] / 255
+            const k = decoded[s + 3] / 255
+            dst[d] = Math.round(255 * (1 - c) * (1 - k))
+            dst[d + 1] = Math.round(255 * (1 - m) * (1 - k))
+            dst[d + 2] = Math.round(255 * (1 - y) * (1 - k))
+            dst[d + 3] = smaskBytes ? smaskBytes[p] : 255
+          }
+        } else if (csInfo.kind === 'gray') {
+          for (let p = 0, d = 0; p < pixelCount; p += 1, d += 4) {
+            const v = decoded[p]
+            dst[d] = v
+            dst[d + 1] = v
+            dst[d + 2] = v
+            dst[d + 3] = smaskBytes ? smaskBytes[p] : 255
+          }
+        } else if (csInfo.kind === 'indexed') {
+          const pal = extractIndexedPaletteBytes(csInfo.lookupObj)
+          if (!pal) continue
+          const palChannels = csInfo.baseChannels || 3
+          for (let p = 0, d = 0; p < pixelCount; p += 1, d += 4) {
+            const idx = decoded[p] * palChannels
+            if (palChannels === 3) {
+              dst[d] = pal[idx] || 0
+              dst[d + 1] = pal[idx + 1] || 0
+              dst[d + 2] = pal[idx + 2] || 0
+            } else {
+              const v = pal[idx] || 0
+              dst[d] = v
+              dst[d + 1] = v
+              dst[d + 2] = v
+            }
+            dst[d + 3] = smaskBytes ? smaskBytes[p] : 255
+          }
+        } else {
+          continue
+        }
+        offCtx.putImageData(imgData, 0, 0)
+        imageMap.set(cleanKey, offCanvas)
+      }
+    }
+  } catch {
+    // Return partial maps if resource lookup fails
+  }
+  return { imageMap, formMap, fontMap }
+}
+
+function tokenizePdfContentStream(contentStr) {
+  const tokens = []
+  let i = 0
+  const len = contentStr.length
+
+  while (i < len) {
+    const ch = contentStr[i]
+    if (ch <= ' ') {
+      i += 1
+      continue
+    }
+    if (ch === '%') {
+      while (i < len && contentStr[i] !== '\n' && contentStr[i] !== '\r') i += 1
+      continue
+    }
+    if (ch === '(') {
+      let depth = 1
+      i += 1
+      let buf = ''
+      while (i < len && depth > 0) {
+        const c = contentStr[i]
+        if (c === '\\') {
+          buf += c
+          i += 1
+          if (i < len) {
+            buf += contentStr[i]
+            i += 1
+          }
+          continue
+        }
+        if (c === '(') depth += 1
+        else if (c === ')') {
+          depth -= 1
+          if (depth === 0) {
+            i += 1
+            break
+          }
+        }
+        buf += c
+        i += 1
+      }
+      tokens.push({ type: 'str', value: decodePdfStringBytes(buf) })
+      continue
+    }
+    if (ch === '<' && contentStr[i + 1] === '<') {
+      i += 2
+      continue
+    }
+    if (ch === '>' && contentStr[i + 1] === '>') {
+      i += 2
+      continue
+    }
+    if (ch === '<') {
+      i += 1
+      let hex = ''
+      while (i < len && contentStr[i] !== '>') {
+        hex += contentStr[i]
+        i += 1
+      }
+      if (i < len && contentStr[i] === '>') i += 1
+      tokens.push({ type: 'str', value: decodeHexPdfBytes(hex) })
+      continue
+    }
+    if (ch === '[') {
+      i += 1
+      const arr = []
+      while (i < len && contentStr[i] !== ']') {
+        const c = contentStr[i]
+        if (c <= ' ') {
+          i += 1
+          continue
+        }
+        if (c === '(') {
+          let depth = 1
+          i += 1
+          let buf = ''
+          while (i < len && depth > 0) {
+            const sc = contentStr[i]
+            if (sc === '\\') {
+              buf += sc
+              i += 1
+              if (i < len) {
+                buf += contentStr[i]
+                i += 1
+              }
+              continue
+            }
+            if (sc === '(') depth += 1
+            else if (sc === ')') {
+              depth -= 1
+              if (depth === 0) {
+                i += 1
+                break
+              }
+            }
+            buf += sc
+            i += 1
+          }
+          arr.push({ type: 'str', value: decodePdfStringBytes(buf) })
+          continue
+        }
+        if (c === '<') {
+          i += 1
+          let hex = ''
+          while (i < len && contentStr[i] !== '>') {
+            hex += contentStr[i]
+            i += 1
+          }
+          if (i < len && contentStr[i] === '>') i += 1
+          arr.push({ type: 'str', value: decodeHexPdfBytes(hex) })
+          continue
+        }
+        let word = ''
+        while (
+          i < len &&
+          contentStr[i] > ' ' &&
+          contentStr[i] !== '[' &&
+          contentStr[i] !== ']' &&
+          contentStr[i] !== '(' &&
+          contentStr[i] !== '<'
+        ) {
+          word += contentStr[i]
+          i += 1
+        }
+        const num = Number(word)
+        if (!Number.isNaN(num)) {
+          arr.push({ type: 'num', value: num })
+        }
+      }
+      if (i < len && contentStr[i] === ']') i += 1
+      tokens.push({ type: 'arr', value: arr })
+      continue
+    }
+    if (ch === '/') {
+      i += 1
+      let name = ''
+      while (
+        i < len &&
+        contentStr[i] > ' ' &&
+        !'()<>[]{}/%'.includes(contentStr[i])
+      ) {
+        name += contentStr[i]
+        i += 1
+      }
+      tokens.push({ type: 'name', value: name })
+      continue
+    }
+
+    let word = ''
+    while (
+      i < len &&
+      contentStr[i] > ' ' &&
+      !'()<>[]{}/%'.includes(contentStr[i])
+    ) {
+      word += contentStr[i]
+      i += 1
+    }
+    if (!word) {
+      i += 1
+      continue
+    }
+    const num = Number(word)
+    if (!Number.isNaN(num)) {
+      tokens.push({ type: 'num', value: num })
+    } else {
+      tokens.push({ type: 'op', value: word })
+    }
+  }
+
+  return tokens
+}
+
+function decodeContentStreamsToText(contentsObj, context) {
+  const streams = []
+  const resolved = context.lookup(contentsObj)
+  if (resolved instanceof PDFRawStream) {
+    streams.push(resolved)
+  } else if (resolved instanceof PDFArray) {
+    for (let i = 0; i < resolved.size(); i += 1) {
+      const item = context.lookup(resolved.get(i))
+      if (item instanceof PDFRawStream) streams.push(item)
+    }
+  }
+
+  let combined = ''
+  for (let i = 0; i < streams.length; i += 1) {
+    let bytes
+    try {
+      bytes = decodeStreamSafely(streams[i])
+    } catch {
+      bytes = streams[i].contents
+    }
+    if (!bytes || !bytes.byteLength) continue
+    const sliceLen = Math.min(bytes.byteLength, 240000)
+    combined += `${new TextDecoder('latin1').decode(bytes.subarray(0, sliceLen))}\n`
+  }
+  return combined
+}
+
+export async function renderPdfPagePreviewToDataUrl(file, pageNumber = 1) {
+  if (!file) return null
+  const arrayBuffer = await file.arrayBuffer()
+  const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true })
+  const totalPages = pdfDoc.getPageCount()
+  const safePageIdx = Math.max(0, Math.min(totalPages - 1, (Number(pageNumber) || 1) - 1))
+  const page = pdfDoc.getPage(safePageIdx)
+
+  const mediaBox = page.getMediaBox()
+  const cropBox = page.getCropBox()
+  const boxX = cropBox?.x ?? mediaBox?.x ?? 0
+  const boxY = cropBox?.y ?? mediaBox?.y ?? 0
+  const pageW = cropBox?.width || mediaBox?.width || page.getSize().width || 595
+  const pageH = cropBox?.height || mediaBox?.height || page.getSize().height || 842
+
+  const scale = Math.min(2.2, 1080 / Math.max(pageW, pageH, 1))
+  const canvasW = Math.max(320, Math.round(pageW * scale))
+  const canvasH = Math.max(420, Math.round(pageH * scale))
+
+  const canvas = document.createElement('canvas')
+  canvas.width = canvasW
+  canvas.height = canvasH
+  const ctx = canvas.getContext('2d')
+
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, canvasW, canvasH)
+
+  const pageResources = pdfDoc.context.lookup(page.node.get(PDFName.of('Resources'))) || page.node.Resources()
+  const { imageMap: xObjectImages, formMap: xObjectForms, fontMap } =
+    await decodeResourcesXObjects(pageResources, pdfDoc.context)
+
+  const stateStack = []
+  let state = {
+    ctm: [1, 0, 0, 1, -boxX, -boxY],
+    fillStyle: '#181416',
+    strokeStyle: '#4e4548',
+    lineWidth: 1,
+    fontSize: 11,
+    fontBold: false,
+    currentFont: null,
+    leading: 13,
+  }
+
+  let textMatrix = [1, 0, 0, 1, 0, 0]
+  let textLineMatrix = [1, 0, 0, 1, 0, 0]
+  let currentPath = []
+  let renderedElements = 0
+
+  const toCanvasPoint = (pdfX, pdfY) => {
+    const pt = applyPdfMatrixToPoint(state.ctm, pdfX, pdfY)
+    return {
+      x: pt.x * scale,
+      y: (pageH - pt.y) * scale,
+    }
+  }
+
+  const drawTextRun = (rawBytes) => {
+    const text = decodeRawBytesWithFont(rawBytes, state.currentFont)
+    if (!text.trim()) return
+    const combinedTextMat = multiplyPdfMatrix(textMatrix, state.ctm)
+    const pdfX = combinedTextMat[4]
+    const pdfY = combinedTextMat[5]
+    const scaleY = Math.hypot(combinedTextMat[2], combinedTextMat[3]) || 1
+    const scaleX = Math.hypot(combinedTextMat[0], combinedTextMat[1]) || 1
+    const effFontPx = Math.max(
+      7,
+      Math.min(54, Math.abs(state.fontSize * Math.max(scaleY, scaleX)) * scale)
+    )
+
+    const cx = pdfX * scale
+    const cy = (pageH - pdfY) * scale
+    ctx.save()
+    ctx.fillStyle = state.fillStyle
+    ctx.font = `${state.fontBold ? '700' : '400'} ${effFontPx.toFixed(1)}px "Plus Jakarta Sans", Helvetica, Arial, sans-serif`
+    ctx.fillText(text, cx, cy)
+    ctx.restore()
+
+    const approxAdvancePdf = text.length * state.fontSize * 0.48
+    textMatrix = multiplyPdfMatrix([1, 0, 0, 1, approxAdvancePdf, 0], textMatrix)
+    renderedElements += 1
+  }
+
+  const flushPath = (doFill, doStroke) => {
+    if (currentPath.length === 0) return
+    ctx.save()
+    ctx.beginPath()
+    for (let i = 0; i < currentPath.length; i += 1) {
+      const cmd = currentPath[i]
+      if (cmd.op === 'rect') {
+        const p1 = toCanvasPoint(cmd.x, cmd.y)
+        const p2 = toCanvasPoint(cmd.x + cmd.w, cmd.y + cmd.h)
+        const rx = Math.min(p1.x, p2.x)
+        const ry = Math.min(p1.y, p2.y)
+        const rw = Math.abs(p2.x - p1.x)
+        const rh = Math.abs(p2.y - p1.y)
+        ctx.rect(rx, ry, rw, rh)
+      } else if (cmd.op === 'move') {
+        const p = toCanvasPoint(cmd.x, cmd.y)
+        ctx.moveTo(p.x, p.y)
+      } else if (cmd.op === 'line') {
+        const p = toCanvasPoint(cmd.x, cmd.y)
+        ctx.lineTo(p.x, p.y)
+      } else if (cmd.op === 'curve') {
+        const p1 = toCanvasPoint(cmd.x1, cmd.y1)
+        const p2 = toCanvasPoint(cmd.x2, cmd.y2)
+        const p3 = toCanvasPoint(cmd.x3, cmd.y3)
+        ctx.bezierCurveTo(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y)
+      } else if (cmd.op === 'close') {
+        ctx.closePath()
+      }
+    }
+    if (doFill) {
+      ctx.fillStyle = state.fillStyle
+      ctx.fill()
+    }
+    if (doStroke) {
+      ctx.strokeStyle = state.strokeStyle
+      ctx.lineWidth = Math.max(0.6, state.lineWidth * scale)
+      ctx.stroke()
+    }
+    ctx.restore()
+    currentPath = []
+    renderedElements += 1
+  }
+
+  const executeContentStream = (contentStr, depth = 0) => {
+    if (!contentStr || depth > 4) return
+    const tokens = tokenizePdfContentStream(contentStr)
+    const operands = []
+
+    const popNum = (fallback = 0) => {
+      const item = operands.pop()
+      return item && item.type === 'num' ? item.value : fallback
+    }
+
+    for (let i = 0; i < tokens.length; i += 1) {
+      const tok = tokens[i]
+      if (tok.type !== 'op') {
+        operands.push(tok)
+        if (operands.length > 40) operands.shift()
+        continue
+      }
+
+      const op = tok.value
+
+      if (op === 'q') {
+        stateStack.push({
+          ...state,
+          ctm: [...state.ctm],
+        })
+      } else if (op === 'Q') {
+        if (stateStack.length > 0) {
+          state = stateStack.pop()
+        }
+      } else if (op === 'cm') {
+        const f = popNum(0)
+        const e = popNum(0)
+        const d = popNum(1)
+        const c = popNum(0)
+        const b = popNum(0)
+        const a = popNum(1)
+        state.ctm = multiplyPdfMatrix([a, b, c, d, e, f], state.ctm)
+      } else if (op === 'rg' || op === 'sc' || op === 'scn') {
+        if (operands.length >= 3) {
+          const b = Math.round(Math.max(0, Math.min(1, popNum(0))) * 255)
+          const g = Math.round(Math.max(0, Math.min(1, popNum(0))) * 255)
+          const r = Math.round(Math.max(0, Math.min(1, popNum(0))) * 255)
+          state.fillStyle = `rgb(${r}, ${g}, ${b})`
+        } else if (operands.length === 1) {
+          const gray = Math.round(Math.max(0, Math.min(1, popNum(0))) * 255)
+          state.fillStyle = `rgb(${gray}, ${gray}, ${gray})`
+        }
+      } else if (op === 'RG' || op === 'SC' || op === 'SCN') {
+        if (operands.length >= 3) {
+          const b = Math.round(Math.max(0, Math.min(1, popNum(0))) * 255)
+          const g = Math.round(Math.max(0, Math.min(1, popNum(0))) * 255)
+          const r = Math.round(Math.max(0, Math.min(1, popNum(0))) * 255)
+          state.strokeStyle = `rgb(${r}, ${g}, ${b})`
+        } else if (operands.length === 1) {
+          const gray = Math.round(Math.max(0, Math.min(1, popNum(0))) * 255)
+          state.strokeStyle = `rgb(${gray}, ${gray}, ${gray})`
+        }
+      } else if (op === 'g') {
+        const gray = Math.round(Math.max(0, Math.min(1, popNum(0))) * 255)
+        state.fillStyle = `rgb(${gray}, ${gray}, ${gray})`
+      } else if (op === 'G') {
+        const gray = Math.round(Math.max(0, Math.min(1, popNum(0))) * 255)
+        state.strokeStyle = `rgb(${gray}, ${gray}, ${gray})`
+      } else if (op === 'k') {
+        const k = Math.max(0, Math.min(1, popNum(0)))
+        const y = Math.max(0, Math.min(1, popNum(0)))
+        const m = Math.max(0, Math.min(1, popNum(0)))
+        const c = Math.max(0, Math.min(1, popNum(0)))
+        const r = Math.round(255 * (1 - c) * (1 - k))
+        const g = Math.round(255 * (1 - m) * (1 - k))
+        const b = Math.round(255 * (1 - y) * (1 - k))
+        state.fillStyle = `rgb(${r}, ${g}, ${b})`
+      } else if (op === 'K') {
+        const k = Math.max(0, Math.min(1, popNum(0)))
+        const y = Math.max(0, Math.min(1, popNum(0)))
+        const m = Math.max(0, Math.min(1, popNum(0)))
+        const c = Math.max(0, Math.min(1, popNum(0)))
+        const r = Math.round(255 * (1 - c) * (1 - k))
+        const g = Math.round(255 * (1 - m) * (1 - k))
+        const b = Math.round(255 * (1 - y) * (1 - k))
+        state.strokeStyle = `rgb(${r}, ${g}, ${b})`
+      } else if (op === 'w') {
+        state.lineWidth = Math.max(0.2, popNum(1))
+      } else if (op === 're') {
+        const h = popNum(0)
+        const w = popNum(0)
+        const y = popNum(0)
+        const x = popNum(0)
+        currentPath.push({ op: 'rect', x, y, w, h })
+      } else if (op === 'm') {
+        const y = popNum(0)
+        const x = popNum(0)
+        currentPath.push({ op: 'move', x, y })
+      } else if (op === 'l') {
+        const y = popNum(0)
+        const x = popNum(0)
+        currentPath.push({ op: 'line', x, y })
+      } else if (op === 'c') {
+        const y3 = popNum(0)
+        const x3 = popNum(0)
+        const y2 = popNum(0)
+        const x2 = popNum(0)
+        const y1 = popNum(0)
+        const x1 = popNum(0)
+        currentPath.push({ op: 'curve', x1, y1, x2, y2, x3, y3 })
+      } else if (op === 'v' || op === 'y') {
+        const y3 = popNum(0)
+        const x3 = popNum(0)
+        const y2 = popNum(0)
+        const x2 = popNum(0)
+        currentPath.push({ op: 'curve', x1: x2, y1: y2, x2, y2, x3, y3 })
+      } else if (op === 'h') {
+        currentPath.push({ op: 'close' })
+      } else if (op === 'S' || op === 's') {
+        if (op === 's') currentPath.push({ op: 'close' })
+        flushPath(false, true)
+      } else if (op === 'f' || op === 'F' || op === 'f*') {
+        flushPath(true, false)
+      } else if (op === 'B' || op === 'B*' || op === 'b' || op === 'b*') {
+        flushPath(true, true)
+      } else if (op === 'n') {
+        currentPath = []
+      } else if (op === 'BT') {
+        textMatrix = [1, 0, 0, 1, 0, 0]
+        textLineMatrix = [1, 0, 0, 1, 0, 0]
+      } else if (op === 'Tf') {
+        const sz = popNum(11)
+        const fontTok = operands.pop()
+        if (sz > 0) state.fontSize = sz
+        const fontName = fontTok ? String(fontTok.value || '').replace(/^\//, '') : ''
+        const resolvedFont = fontMap.get(fontName) || null
+        state.currentFont = resolvedFont
+        state.fontBold = resolvedFont
+          ? resolvedFont.isBold
+          : /bold|black|heavy|demi|F2/i.test(fontName)
+      } else if (op === 'TL') {
+        state.leading = popNum(13)
+      } else if (op === 'Tm') {
+        const f = popNum(0)
+        const e = popNum(0)
+        const d = popNum(1)
+        const c = popNum(0)
+        const b = popNum(0)
+        const a = popNum(1)
+        textLineMatrix = [a, b, c, d, e, f]
+        textMatrix = [...textLineMatrix]
+      } else if (op === 'Td' || op === 'TD') {
+        const ty = popNum(0)
+        const tx = popNum(0)
+        if (op === 'TD') state.leading = -ty
+        textLineMatrix = multiplyPdfMatrix([1, 0, 0, 1, tx, ty], textLineMatrix)
+        textMatrix = [...textLineMatrix]
+      } else if (op === 'T*') {
+        textLineMatrix = multiplyPdfMatrix([1, 0, 0, 1, 0, -state.leading], textLineMatrix)
+        textMatrix = [...textLineMatrix]
+      } else if (op === 'Tj' || op === "'") {
+        if (op === "'") {
+          textLineMatrix = multiplyPdfMatrix([1, 0, 0, 1, 0, -state.leading], textLineMatrix)
+          textMatrix = [...textLineMatrix]
+        }
+        const strTok = operands.pop()
+        if (strTok && strTok.type === 'str') {
+          drawTextRun(strTok.value)
+        }
+      } else if (op === '"') {
+        const strTok = operands.pop()
+        popNum(0)
+        popNum(0)
+        textLineMatrix = multiplyPdfMatrix([1, 0, 0, 1, 0, -state.leading], textLineMatrix)
+        textMatrix = [...textLineMatrix]
+        if (strTok && strTok.type === 'str') {
+          drawTextRun(strTok.value)
+        }
+      } else if (op === 'TJ') {
+        const arrTok = operands.pop()
+        if (arrTok && arrTok.type === 'arr') {
+          for (let k = 0; k < arrTok.value.length; k += 1) {
+            const item = arrTok.value[k]
+            if (item.type === 'str') {
+              drawTextRun(item.value)
+            } else if (item.type === 'num') {
+              const shift = (-item.value / 1000) * state.fontSize
+              textMatrix = multiplyPdfMatrix([1, 0, 0, 1, shift, 0], textMatrix)
+            }
+          }
+        }
+      } else if (op === 'Do') {
+        const nameTok = operands.pop()
+        const key = nameTok ? String(nameTok.value || '').replace(/^\//, '') : ''
+        const imgSource = xObjectImages.get(key)
+        if (imgSource) {
+          const pOrigin = toCanvasPoint(0, 0)
+          const pTopRight = toCanvasPoint(1, 1)
+          const drawX = Math.min(pOrigin.x, pTopRight.x)
+          const drawY = Math.min(pOrigin.y, pTopRight.y)
+          const drawW = Math.max(4, Math.abs(pTopRight.x - pOrigin.x))
+          const drawH = Math.max(4, Math.abs(pTopRight.y - pOrigin.y))
+          ctx.drawImage(imgSource, drawX, drawY, drawW, drawH)
+          renderedElements += 1
+        } else if (xObjectForms.has(key)) {
+          const formObj = xObjectForms.get(key)
+          stateStack.push({
+            ...state,
+            ctm: [...state.ctm],
+          })
+          state.ctm = multiplyPdfMatrix(formObj.matrix, state.ctm)
+          const formContent = decodeContentStreamsToText(formObj.stream, pdfDoc.context)
+          executeContentStream(formContent, depth + 1)
+          if (stateStack.length > 0) {
+            state = stateStack.pop()
+          }
+        }
+      }
+
+      operands.length = 0
+    }
+  }
+
+  const pageContentStr = decodeContentStreamsToText(page.node.get(PDFName.of('Contents')), pdfDoc.context)
+  executeContentStream(pageContentStr, 0)
+
+  let singlePagePdfBytes
+  try {
+    const singleDoc = await PDFDocument.create()
+    const [copiedPage] = await singleDoc.copyPages(pdfDoc, [safePageIdx])
+    singleDoc.addPage(copiedPage)
+    singlePagePdfBytes = await singleDoc.save()
+  } catch {
+    singlePagePdfBytes = null
+  }
+
+  return {
+    dataUrl: canvas.toDataURL('image/png'),
+    singlePagePdfBytes,
+    width: Math.round(pageW),
+    height: Math.round(pageH),
+    renderedElements,
+  }
+}
+
+export function recolorCanvasStrokes(canvasElement, hexColor = '#141112') {
+  if (!canvasElement) return
+  const cleanHex = String(hexColor || '#141112').replace('#', '')
+  if (cleanHex.length !== 6) return
+  const r = parseInt(cleanHex.slice(0, 2), 16)
+  const g = parseInt(cleanHex.slice(2, 4), 16)
+  const b = parseInt(cleanHex.slice(4, 6), 16)
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return
+
+  const ctx = canvasElement.getContext('2d')
+  const imgData = ctx.getImageData(0, 0, canvasElement.width, canvasElement.height)
+  const { data } = imgData
+  let hasPixels = false
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] > 0) {
+      data[i] = r
+      data[i + 1] = g
+      data[i + 2] = b
+      hasPixels = true
+    }
+  }
+  if (hasPixels) {
+    ctx.putImageData(imgData, 0, 0)
+  }
+}
+
+function extractPagesMeta(pdfDoc) {
+  const pages = pdfDoc.getPages()
+  return pages.map((page, idx) => {
+    const { width, height } = page.getSize()
+    const rotation = page.getRotation()?.angle || 0
+    const isRotated = rotation % 180 !== 0
+    const effWidth = isRotated ? height : width
+    const effHeight = isRotated ? width : height
+    return {
+      pageNumber: idx + 1,
+      width: Math.round(effWidth),
+      height: Math.round(effHeight),
+      rotation,
+    }
+  })
+}
+
+// Trim transparent margins so signature placement matches visible ink bounds.
+function trimCanvasTransparentBounds(sourceCanvas, padding = 10) {
+  const w = sourceCanvas.width
+  const h = sourceCanvas.height
+  const ctx = sourceCanvas.getContext('2d')
+  const imgData = ctx.getImageData(0, 0, w, h)
+  const { data } = imgData
+
+  let minX = w
+  let minY = h
+  let maxX = -1
+  let maxY = -1
+
+  for (let y = 0; y < h; y += 1) {
+    for (let x = 0; x < w; x += 1) {
+      const alpha = data[(y * w + x) * 4 + 3]
+      if (alpha > 18) {
+        if (x < minX) minX = x
+        if (x > maxX) maxX = x
+        if (y < minY) minY = y
+        if (y > maxY) maxY = y
+      }
+    }
+  }
+
+  if (maxX < minX || maxY < minY) {
+    return { isEmpty: true, canvas: sourceCanvas, width: w, height: h }
+  }
+
+  const cropX = Math.max(0, minX - padding)
+  const cropY = Math.max(0, minY - padding)
+  const cropW = Math.min(w - cropX, maxX - minX + 1 + padding * 2)
+  const cropH = Math.min(h - cropY, maxY - minY + 1 + padding * 2)
+
+  const trimmed = document.createElement('canvas')
+  trimmed.width = Math.max(24, cropW)
+  trimmed.height = Math.max(16, cropH)
+  const trimmedCtx = trimmed.getContext('2d')
+  trimmedCtx.drawImage(sourceCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH)
+
+  return {
+    isEmpty: false,
+    canvas: trimmed,
+    width: trimmed.width,
+    height: trimmed.height,
+  }
+}
+
+export async function exportCanvasSignature(canvasElement) {
+  if (!canvasElement) {
+    throw new Error('Kanvas tanda tangan tidak ditemukan.')
+  }
+  const trimmedInfo = trimCanvasTransparentBounds(canvasElement, 12)
+  if (trimmedInfo.isEmpty) {
+    return { isEmpty: true, dataUrl: '', pngBytes: null, width: 0, height: 0, aspectRatio: 2.2 }
+  }
+
+  const dataUrl = trimmedInfo.canvas.toDataURL('image/png')
+  const blob = await new Promise((resolve) => trimmedInfo.canvas.toBlob(resolve, 'image/png'))
+  const buf = await blob.arrayBuffer()
+  const pngBytes = new Uint8Array(buf)
+
+  return {
+    isEmpty: false,
+    dataUrl,
+    pngBytes,
+    width: trimmedInfo.width,
+    height: trimmedInfo.height,
+    aspectRatio: Math.max(0.4, Math.min(6, trimmedInfo.width / Math.max(1, trimmedInfo.height))),
+  }
+}
+
+export async function processSignatureImageFile(file, { removeWhiteBg = true } = {}) {
+  if (!file) {
+    throw new Error('Pilih berkas gambar tanda tangan terlebih dahulu.')
+  }
+  const isImage =
+    /^image\/(png|jpe?g|webp)/i.test(file.type || '') ||
+    /\.(png|jpe?g|webp)$/i.test(file.name || '')
+  if (!isImage) {
+    throw new Error('Format gambar tanda tangan harus berupa PNG, JPG, atau WEBP.')
+  }
+
+  const objectUrl = URL.createObjectURL(file)
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const el = new Image()
+      el.onload = () => resolve(el)
+      el.onerror = () => reject(new Error('Gagal memuat berkas gambar tanda tangan.'))
+      el.src = objectUrl
+    })
+
+    const maxDim = 1000
+    const scale = Math.min(1, maxDim / Math.max(img.naturalWidth || 1, img.naturalHeight || 1))
+    const w = Math.max(16, Math.round((img.naturalWidth || 300) * scale))
+    const h = Math.max(16, Math.round((img.naturalHeight || 150) * scale))
+
+    const workCanvas = document.createElement('canvas')
+    workCanvas.width = w
+    workCanvas.height = h
+    const ctx = workCanvas.getContext('2d')
+    ctx.drawImage(img, 0, 0, w, h)
+
+    if (removeWhiteBg) {
+      const imgData = ctx.getImageData(0, 0, w, h)
+      const { data } = imgData
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i]
+        const g = data[i + 1]
+        const b = data[i + 2]
+        const a = data[i + 3]
+        if (a === 0) continue
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b
+        if (lum > 238) {
+          data[i + 3] = 0
+        } else if (lum > 195) {
+          const factor = (238 - lum) / 43
+          data[i + 3] = Math.round(a * factor)
+        }
+      }
+      ctx.putImageData(imgData, 0, 0)
+    }
+
+    const trimmedInfo = trimCanvasTransparentBounds(workCanvas, 10)
+    const targetCanvas = trimmedInfo.isEmpty ? workCanvas : trimmedInfo.canvas
+    const dataUrl = targetCanvas.toDataURL('image/png')
+    const blob = await new Promise((resolve) => targetCanvas.toBlob(resolve, 'image/png'))
+    const buf = await blob.arrayBuffer()
+    const pngBytes = new Uint8Array(buf)
+
+    return {
+      name: file.name,
+      size: file.size,
+      dataUrl,
+      pngBytes,
+      width: targetCanvas.width,
+      height: targetCanvas.height,
+      aspectRatio: Math.max(0.4, Math.min(6, targetCanvas.width / Math.max(1, targetCanvas.height))),
+    }
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+  }
+}
+
+export function resolveTargetSignaturePages({
+  pageMode = 'all',
+  pageCount = 1,
+  intervalStep = 2,
+  intervalStart = 1,
+  customRange = '',
+  selectedPages = [],
+}) {
+  const total = Math.max(1, Number(pageCount) || 1)
+
+  if (pageMode === 'all') {
+    return {
+      pages: Array.from({ length: total }, (_, i) => i + 1),
+      error: null,
+    }
+  }
+
+  if (pageMode === 'last') {
+    return {
+      pages: [total],
+      error: null,
+    }
+  }
+
+  if (pageMode === 'first') {
+    return {
+      pages: [1],
+      error: null,
+    }
+  }
+
+  if (pageMode === 'interval') {
+    const step = Math.max(1, Math.min(total, parseInt(intervalStep, 10) || 1))
+    const start = Math.max(1, Math.min(total, parseInt(intervalStart, 10) || 1))
+    const pages = []
+    for (let p = start; p <= total; p += step) {
+      pages.push(p)
+    }
+    return {
+      pages,
+      error: pages.length === 0 ? 'Tidak ada halaman yang cocok dengan interval tersebut.' : null,
+    }
+  }
+
+  if (pageMode === 'custom') {
+    if (String(customRange || '').trim()) {
+      const parsed = parsePageRanges(customRange, total)
+      return {
+        pages: parsed.pages,
+        error: parsed.error,
+      }
+    }
+    const validSelected = Array.from(new Set(selectedPages))
+      .filter((p) => p >= 1 && p <= total)
+      .sort((a, b) => a - b)
+    if (validSelected.length === 0) {
+      return {
+        pages: [],
+        error: 'Pilih minimal 1 halaman atau ketik rentang halaman yang ingin ditandatangani.',
+      }
+    }
+    return {
+      pages: validSelected,
+      error: null,
+    }
+  }
+
+  return {
+    pages: [total],
+    error: null,
+  }
+}
+
+export async function signPdfDocument(
+  {
+    file,
+    signaturePngBytes,
+    pages = [],
+    xPercent = 78,
+    yPercent = 82,
+    scalePercent = 22,
+    opacityPercent = 100,
+    signerName = '',
+    signDateText = '',
+  },
+  onProgress
+) {
+  if (!file) {
+    throw new Error('Unggah berkas PDF terlebih dahulu.')
+  }
+  if (!signaturePngBytes || !signaturePngBytes.byteLength) {
+    throw new Error('Buat atau unggah tanda tangan terlebih dahulu.')
+  }
+  if (!Array.isArray(pages) || pages.length === 0) {
+    throw new Error('Pilih minimal 1 halaman untuk ditempel tanda tangan.')
+  }
+
+  if (onProgress) {
+    onProgress(`Membaca dokumen "${truncateFileName(file.name, 26)}"...`)
+  }
+
+  const arrayBuffer = await file.arrayBuffer()
+  const pdfDoc = await PDFDocument.load(arrayBuffer)
+  const totalPages = pdfDoc.getPageCount()
+  const sigImage = await pdfDoc.embedPng(signaturePngBytes)
+
+  const cleanSigner = String(signerName || '').trim()
+  const cleanDate = String(signDateText || '').trim()
+  const hasCaption = Boolean(cleanSigner || cleanDate)
+  const fontBold = hasCaption ? await pdfDoc.embedFont(StandardFonts.HelveticaBold) : null
+  const fontRegular = hasCaption ? await pdfDoc.embedFont(StandardFonts.Helvetica) : null
+
+  const aspectRatio = sigImage.width / Math.max(1, sigImage.height)
+  const opacity = Math.max(0.2, Math.min(1, Number(opacityPercent || 100) / 100))
+  const scaleRatio = Math.max(0.08, Math.min(0.55, Number(scalePercent || 22) / 100))
+
+  const validPages = pages.filter((p) => p >= 1 && p <= totalPages)
+  if (validPages.length === 0) {
+    throw new Error('Halaman tujuan berada di luar jumlah halaman dokumen.')
+  }
+
+  for (let i = 0; i < validPages.length; i += 1) {
+    const pageNum = validPages[i]
+    if (onProgress && (i === 0 || i === validPages.length - 1 || i % 3 === 0)) {
+      onProgress(`Menempelkan tanda tangan pada halaman ${pageNum} (${i + 1}/${validPages.length})...`)
+    }
+
+    const page = pdfDoc.getPage(pageNum - 1)
+    const { width: pageW, height: pageH } = page.getSize()
+
+    const sigW = pageW * scaleRatio
+    const sigH = sigW / aspectRatio
+
+    const signerFontSize = Math.max(8, Math.min(12, Math.round(pageW * 0.0165)))
+    const dateFontSize = Math.max(7, Math.min(10, Math.round(pageW * 0.014)))
+    const captionGap = 4
+    let captionHeight = 0
+    if (cleanSigner) captionHeight += signerFontSize + captionGap
+    if (cleanDate) captionHeight += dateFontSize + 3
+
+    const totalStampH = sigH + captionHeight
+    const centerX = pageW * (Math.max(0, Math.min(100, Number(xPercent))) / 100)
+    const centerYFromTop = pageH * (Math.max(0, Math.min(100, Number(yPercent))) / 100)
+
+    const drawX = Math.max(10, Math.min(pageW - sigW - 10, centerX - sigW / 2))
+    const topFromPageTop = Math.max(
+      10,
+      Math.min(pageH - totalStampH - 10, centerYFromTop - totalStampH / 2)
+    )
+    const sigBottomY = pageH - topFromPageTop - sigH
+
+    page.drawImage(sigImage, {
+      x: drawX,
+      y: sigBottomY,
+      width: sigW,
+      height: sigH,
+      opacity,
+    })
+
+    let textBaselineY = sigBottomY - captionGap - signerFontSize + 2
+    if (cleanSigner && fontBold) {
+      const textWidth = fontBold.widthOfTextAtSize(cleanSigner, signerFontSize)
+      const textX = Math.max(
+        10,
+        Math.min(pageW - textWidth - 10, drawX + sigW / 2 - textWidth / 2)
+      )
+      page.drawText(cleanSigner, {
+        x: textX,
+        y: textBaselineY,
+        size: signerFontSize,
+        font: fontBold,
+        color: rgb(0.08, 0.07, 0.07),
+        opacity,
+      })
+      textBaselineY -= dateFontSize + 3
+    }
+
+    if (cleanDate && fontRegular) {
+      const dateWidth = fontRegular.widthOfTextAtSize(cleanDate, dateFontSize)
+      const dateX = Math.max(
+        10,
+        Math.min(pageW - dateWidth - 10, drawX + sigW / 2 - dateWidth / 2)
+      )
+      page.drawText(cleanDate, {
+        x: dateX,
+        y: textBaselineY,
+        size: dateFontSize,
+        font: fontRegular,
+        color: rgb(0.3, 0.26, 0.28),
+        opacity,
+      })
+    }
+  }
+
+  if (onProgress) {
+    onProgress('Menyimpan dokumen PDF bertanda tangan...')
+  }
+
+  const pdfBytes = await pdfDoc.save()
+  const baseName = stripPdfExtension(file.name)
+  const fileName = `${baseName}-tertandatangani.pdf`
+
+  return {
+    pdfBytes,
+    fileName,
+    sourceName: file.name,
+    totalPages,
+    signedPageCount: validPages.length,
+    signedPages: validPages,
+    size: pdfBytes.byteLength,
   }
 }

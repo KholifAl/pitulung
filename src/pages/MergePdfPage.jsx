@@ -189,170 +189,189 @@ export default function MergePdfPage() {
 
         {/* DROPZONE ATAU DAFTAR BERKAS PDF */}
         {pdfItems.length === 0 ? (
-          <div
-            className="pdf-dropzone-area"
-            role="button"
-            tabIndex={0}
-            onClick={() => fileInputRef.current?.click()}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                fileInputRef.current?.click()
-              }
-            }}
-          >
-            <div className="pdf-dropzone-icon">
-              <IconMergePdf size={24} />
-            </div>
-            <div className="pdf-dropzone-text">
-              <strong>
-                {isEn
-                  ? 'Drag & drop multiple PDF files here'
-                  : 'Tarik & lepas beberapa file PDF ke sini'}
-              </strong>
-              <span>
-                {isEn
-                  ? 'or click to select files from your device (minimum 2 PDF files)'
-                  : 'atau klik untuk memilih berkas dari perangkatmu (minimal 2 file PDF)'}
-              </span>
-            </div>
-            <span className="pdf-dropzone-pill">
-              <IconPlus size={13} />
-              <span>{isEn ? 'Select PDF Files' : 'Pilih File PDF'}</span>
-            </span>
-          </div>
-        ) : (
-          <div className="pdf-file-list-container">
-            <div className="pdf-file-list-head">
-              <div>
+          <>
+            <div
+              className="pdf-dropzone-area"
+              role="button"
+              tabIndex={0}
+              onClick={() => fileInputRef.current?.click()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  fileInputRef.current?.click()
+                }
+              }}
+            >
+              <div className="pdf-dropzone-icon">
+                <IconMergePdf size={24} />
+              </div>
+              <div className="pdf-dropzone-text">
+                <strong>
+                  {isEn
+                    ? 'Drag & drop PDF file here'
+                    : 'Tarik & lepas berkas PDF ke sini'}
+                </strong>
                 <span>
                   {isEn
-                    ? `Merge Order (${pdfItems.length} files • ${totalPages} Pages • ${formatFileSize(totalSize)})`
-                    : `Urutan Penggabungan (${pdfItems.length} file • ${totalPages} Halaman • ${formatFileSize(totalSize)})`}
+                    ? 'or click to select files from your device (minimum 2 PDF files)'
+                    : 'atau klik untuk memilih berkas dari perangkatmu (minimal 2 file PDF)'}
                 </span>
               </div>
-              <div className="empty-doc-left">
-                <button
-                  type="button"
-                  className="upload-doc-trigger-btn"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isBusy}
-                >
-                  <IconUpload size={13} />
-                  <span>{isEn ? 'Add PDF Files' : 'Tambah File PDF'}</span>
-                </button>
-                <button
-                  type="button"
-                  className="sample-doc-trigger-btn is-danger-subtle"
-                  onClick={handleClearAll}
-                  disabled={isBusy}
-                >
-                  <IconTrash size={13} />
-                  <span>{isEn ? 'Clear All' : 'Bersihkan Semua'}</span>
-                </button>
-              </div>
+              <span className="pdf-dropzone-pill">
+                <IconPlus size={13} />
+                <span>{isEn ? 'Select PDF Files' : 'Pilih File PDF'}</span>
+              </span>
             </div>
 
-            <ul
-              className="pdf-file-list"
-              aria-label={
-                isEn ? 'List of PDF files to be merged' : 'Daftar berkas PDF yang akan digabung'
-              }
-            >
-              {pdfItems.map((item, idx) => (
-                <li key={item.id} className="pdf-file-item">
-                  <div className="pdf-file-item-left">
-                    <span
-                      className="pdf-file-order-badge"
-                      aria-label={isEn ? `Order ${idx + 1}` : `Urutan ${idx + 1}`}
-                    >
-                      {idx + 1}
-                    </span>
-                    <span className="active-doc-icon pdf-item-icon">
-                      <IconFileText size={16} />
-                    </span>
-                    <div className="pdf-file-meta">
-                      <strong className="pdf-file-name" title={item.name}>
-                        {truncateFileName(item.name, 38)}
-                      </strong>
-                      <div className="pdf-file-submeta">
-                        <span className="active-doc-tag">
-                          {item.pageCount} {isEn ? 'Pages' : 'Halaman'}
-                        </span>
-                        <span className="pdf-file-size">{formatFileSize(item.size)}</span>
+            <div className="pdf-action-bar">
+              <div className="pdf-action-summary">
+                <span className="pdf-privacy-badge">
+                  <IconShield size={14} />
+                  <span>
+                    {isEn
+                      ? '100% Local • Privacy Protected'
+                      : '100% Lokal - Privasi Terjaga'}
+                  </span>
+                </span>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="pdf-file-list-container">
+              <div className="pdf-file-list-head">
+                <div>
+                  <span>
+                    {isEn
+                      ? `Merge Order (${pdfItems.length} files • ${totalPages} Pages • ${formatFileSize(totalSize)})`
+                      : `Urutan Penggabungan (${pdfItems.length} file • ${totalPages} Halaman • ${formatFileSize(totalSize)})`}
+                  </span>
+                </div>
+                <div className="empty-doc-left">
+                  <button
+                    type="button"
+                    className="upload-doc-trigger-btn"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isBusy}
+                  >
+                    <IconUpload size={13} />
+                    <span>{isEn ? 'Add PDF Files' : 'Tambah File PDF'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="sample-doc-trigger-btn is-danger-subtle"
+                    onClick={handleClearAll}
+                    disabled={isBusy}
+                  >
+                    <IconTrash size={13} />
+                    <span>{isEn ? 'Clear All' : 'Bersihkan Semua'}</span>
+                  </button>
+                </div>
+              </div>
+
+              <ul
+                className="pdf-file-list"
+                aria-label={
+                  isEn ? 'List of PDF files to be merged' : 'Daftar berkas PDF yang akan digabung'
+                }
+              >
+                {pdfItems.map((item, idx) => (
+                  <li key={item.id} className="pdf-file-item">
+                    <div className="pdf-file-item-left">
+                      <span
+                        className="pdf-file-order-badge"
+                        aria-label={isEn ? `Order ${idx + 1}` : `Urutan ${idx + 1}`}
+                      >
+                        {idx + 1}
+                      </span>
+                      <span className="active-doc-icon pdf-item-icon">
+                        <IconFileText size={16} />
+                      </span>
+                      <div className="pdf-file-meta">
+                        <strong className="pdf-file-name" title={item.name}>
+                          {truncateFileName(item.name, 38)}
+                        </strong>
+                        <div className="pdf-file-submeta">
+                          <span className="active-doc-tag">
+                            {item.pageCount} {isEn ? 'Pages' : 'Halaman'}
+                          </span>
+                          <span className="pdf-file-size">{formatFileSize(item.size)}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="pdf-file-item-actions">
-                    <button
-                      type="button"
-                      className="pdf-order-btn"
-                      onClick={() => handleMoveItem(idx, -1)}
-                      disabled={idx === 0 || isBusy}
-                      title={isEn ? 'Move up' : 'Geser ke atas'}
-                      aria-label={isEn ? `Move ${item.name} up` : `Geser ${item.name} ke atas`}
-                    >
-                      <IconArrowUp size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      className="pdf-order-btn"
-                      onClick={() => handleMoveItem(idx, 1)}
-                      disabled={idx === pdfItems.length - 1 || isBusy}
-                      title={isEn ? 'Move down' : 'Geser ke bawah'}
-                      aria-label={isEn ? `Move ${item.name} down` : `Geser ${item.name} ke bawah`}
-                    >
-                      <IconArrowDown size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      className="doc-remove-btn pdf-delete-btn"
-                      onClick={() => handleRemoveItem(item.id)}
-                      disabled={isBusy}
-                      title={isEn ? 'Remove file from list' : 'Hapus file dari daftar'}
-                      aria-label={isEn ? `Remove ${item.name}` : `Hapus ${item.name}`}
-                    >
-                      <IconClose size={12} />
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
+                    <div className="pdf-file-item-actions">
+                      <button
+                        type="button"
+                        className="pdf-order-btn"
+                        onClick={() => handleMoveItem(idx, -1)}
+                        disabled={idx === 0 || isBusy}
+                        title={isEn ? 'Move up' : 'Geser ke atas'}
+                        aria-label={isEn ? `Move ${item.name} up` : `Geser ${item.name} ke atas`}
+                      >
+                        <IconArrowUp size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        className="pdf-order-btn"
+                        onClick={() => handleMoveItem(idx, 1)}
+                        disabled={idx === pdfItems.length - 1 || isBusy}
+                        title={isEn ? 'Move down' : 'Geser ke bawah'}
+                        aria-label={isEn ? `Move ${item.name} down` : `Geser ${item.name} ke bawah`}
+                      >
+                        <IconArrowDown size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        className="doc-remove-btn pdf-delete-btn"
+                        onClick={() => handleRemoveItem(item.id)}
+                        disabled={isBusy}
+                        title={isEn ? 'Remove file from list' : 'Hapus file dari daftar'}
+                        aria-label={isEn ? `Remove ${item.name}` : `Hapus ${item.name}`}
+                      >
+                        <IconClose size={12} />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* PRIMARY ACTION ROW */}
+            <div className="pdf-action-bar">
+              <div className="pdf-action-summary">
+                <span className="pdf-privacy-badge">
+                  <IconShield size={14} />
+                  <span>
+                    {isEn
+                      ? '100% Local - Privacy Protected'
+                      : '100% Lokal - Privasi Terjaga'}
+                  </span>
+                </span>
+              </div>
+
+              <button
+                type="button"
+                className="clean-submit-btn pdf-submit-btn"
+                onClick={handleMergeNow}
+                disabled={isBusy || pdfItems.length < 2}
+              >
+                <span>
+                  {isMerging
+                    ? isEn
+                      ? 'Merging PDFs...'
+                      : 'Menggabungkan PDF...'
+                    : isEn
+                      ? 'Merge PDFs Now'
+                      : 'Gabung PDF Sekarang'}
+                </span>
+                <span className="submit-arrow-circle">
+                  <IconArrowUpRight size={16} />
+                </span>
+              </button>
+            </div>
+          </>
         )}
-
-        {/* PRIMARY ACTION ROW */}
-        <div className="pdf-action-bar">
-          <div className="pdf-action-summary">
-            <span className="pdf-privacy-badge">
-              <IconShield size={14} />
-              <span>
-                {isEn ? '100% Local in Browser • Privacy Protected' : '100% Lokal di Browser • Privasi Terjaga'}
-              </span>
-            </span>
-          </div>
-
-          <button
-            type="button"
-            className="clean-submit-btn pdf-submit-btn"
-            onClick={handleMergeNow}
-            disabled={isBusy || pdfItems.length < 2}
-          >
-            <span>
-              {isMerging
-                ? isEn
-                  ? 'Merging PDFs...'
-                  : 'Menggabungkan PDF...'
-                : isEn
-                  ? 'Merge PDFs Now'
-                  : 'Gabung PDF Sekarang'}
-            </span>
-            <span className="submit-arrow-circle">
-              <IconArrowUpRight size={16} />
-            </span>
-          </button>
-        </div>
 
         {errorMsg && (
           <div className="clean-error-banner" role="alert">
