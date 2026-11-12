@@ -5491,7 +5491,7 @@
 .pdf-sig-canvas-stage {
   position: relative;
   width: 100%;
-  height: 168px;
+  height: 230px;
   background: #ffffff;
   border: 1.4px dashed var(--maroon-border-strong);
   border-radius: 10px;
