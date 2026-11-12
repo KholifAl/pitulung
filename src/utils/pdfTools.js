@@ -14,6 +14,10 @@ import {
   rgb,
 } from 'pdf-lib'
 import JSZip from 'jszip'
+import * as pdfjsLib from 'pdfjs-dist'
+import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl
 
 /**
  * Memendekkan nama file panjang agar rapi di dalam kartu UI
@@ -2476,10 +2480,95 @@ function decodeContentStreamsToText(contentsObj, context) {
   return combined
 }
 
-export async function renderPdfPagePreviewToDataUrl(file, pageNumber = 1) {
+async function renderPdfPageWithPdfJs(arrayBuffer, pageNumber, options = {}) {
+  let pdfjsDoc = options.pdfjsDoc || null
+  let shouldDestroy = false
+
+  if (!pdfjsDoc) {
+    const loadingTask = pdfjsLib.getDocument({
+      data: new Uint8Array(arrayBuffer.slice(0)),
+      useSystemFonts: true,
+    })
+    pdfjsDoc = await loadingTask.promise
+    shouldDestroy = true
+  }
+
+  try {
+    const safePageNum = Math.max(1, Math.min(pdfjsDoc.numPages, Number(pageNumber) || 1))
+    const page = await pdfjsDoc.getPage(safePageNum)
+    const baseViewport = page.getViewport({ scale: 1 })
+
+    const targetMaxDim = Number(options.maxDimension) || 1080
+    const maxScaleCap = Number(options.maxScale) || 2.2
+    const scale = Math.min(
+      maxScaleCap,
+      targetMaxDim / Math.max(baseViewport.width, baseViewport.height, 1)
+    )
+    const viewport = page.getViewport({ scale })
+
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(viewport.width))
+    canvas.height = Math.max(1, Math.round(viewport.height))
+    const ctx = canvas.getContext('2d')
+
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+    await page.render({ canvasContext: ctx, viewport }).promise
+
+    const mimeType = options.mimeType === 'image/jpeg' ? 'image/jpeg' : 'image/png'
+    const quality = typeof options.quality === 'number' ? options.quality : 0.92
+
+    return {
+      canvas,
+      dataUrl: canvas.toDataURL(mimeType, quality),
+      width: Math.round(baseViewport.width),
+      height: Math.round(baseViewport.height),
+      pixelWidth: canvas.width,
+      pixelHeight: canvas.height,
+    }
+  } finally {
+    if (shouldDestroy && pdfjsDoc) {
+      try {
+        await pdfjsDoc.destroy()
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+  }
+}
+
+export async function renderPdfPagePreviewToDataUrl(file, pageNumber = 1, options = {}) {
   if (!file) return null
-  const arrayBuffer = await file.arrayBuffer()
-  const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true })
+  const arrayBuffer = options.arrayBuffer || (await file.arrayBuffer())
+
+  try {
+    const rendered = await renderPdfPageWithPdfJs(arrayBuffer, pageNumber, options)
+    let singlePagePdfBytes = null
+    if (!options.skipSinglePagePdf) {
+      try {
+        const pdfDoc =
+          options.pdfDoc || (await PDFDocument.load(arrayBuffer, { ignoreEncryption: true }))
+        const totalPages = pdfDoc.getPageCount()
+        const safePageIdx = Math.max(0, Math.min(totalPages - 1, (Number(pageNumber) || 1) - 1))
+        const singleDoc = await PDFDocument.create()
+        const [copiedPage] = await singleDoc.copyPages(pdfDoc, [safePageIdx])
+        singleDoc.addPage(copiedPage)
+        singlePagePdfBytes = await singleDoc.save()
+      } catch {
+        singlePagePdfBytes = null
+      }
+    }
+    return {
+      ...rendered,
+      singlePagePdfBytes,
+      renderedElements: 1,
+    }
+  } catch {
+    // Fall back to lightweight pdf-lib stream renderer if PDF.js fails
+  }
+
+  const pdfDoc = options.pdfDoc || (await PDFDocument.load(arrayBuffer, { ignoreEncryption: true }))
   const totalPages = pdfDoc.getPageCount()
   const safePageIdx = Math.max(0, Math.min(totalPages - 1, (Number(pageNumber) || 1) - 1))
   const page = pdfDoc.getPage(safePageIdx)
@@ -2491,7 +2580,9 @@ export async function renderPdfPagePreviewToDataUrl(file, pageNumber = 1) {
   const pageW = cropBox?.width || mediaBox?.width || page.getSize().width || 595
   const pageH = cropBox?.height || mediaBox?.height || page.getSize().height || 842
 
-  const scale = Math.min(2.2, 1080 / Math.max(pageW, pageH, 1))
+  const targetMaxDim = Number(options.maxDimension) || 1080
+  const maxScaleCap = Number(options.maxScale) || 2.2
+  const scale = Math.min(maxScaleCap, targetMaxDim / Math.max(pageW, pageH, 1))
   const canvasW = Math.max(320, Math.round(pageW * scale))
   const canvasH = Math.max(420, Math.round(pageH * scale))
 
@@ -2822,21 +2913,30 @@ export async function renderPdfPagePreviewToDataUrl(file, pageNumber = 1) {
   const pageContentStr = decodeContentStreamsToText(page.node.get(PDFName.of('Contents')), pdfDoc.context)
   executeContentStream(pageContentStr, 0)
 
-  let singlePagePdfBytes
-  try {
-    const singleDoc = await PDFDocument.create()
-    const [copiedPage] = await singleDoc.copyPages(pdfDoc, [safePageIdx])
-    singleDoc.addPage(copiedPage)
-    singlePagePdfBytes = await singleDoc.save()
-  } catch {
-    singlePagePdfBytes = null
+  let singlePagePdfBytes = null
+  if (!options.skipSinglePagePdf) {
+    try {
+      const singleDoc = await PDFDocument.create()
+      const [copiedPage] = await singleDoc.copyPages(pdfDoc, [safePageIdx])
+      singleDoc.addPage(copiedPage)
+      singlePagePdfBytes = await singleDoc.save()
+    } catch {
+      singlePagePdfBytes = null
+    }
   }
 
+  const mimeType = options.mimeType === 'image/jpeg' ? 'image/jpeg' : 'image/png'
+  const quality = typeof options.quality === 'number' ? options.quality : 0.92
+  const dataUrl = canvas.toDataURL(mimeType, quality)
+
   return {
-    dataUrl: canvas.toDataURL('image/png'),
+    canvas,
+    dataUrl,
     singlePagePdfBytes,
     width: Math.round(pageW),
     height: Math.round(pageH),
+    pixelWidth: canvasW,
+    pixelHeight: canvasH,
     renderedElements,
   }
 }
@@ -3104,6 +3204,7 @@ export function resolveTargetSignaturePages({
 export async function signPdfDocument(
   {
     file,
+    signatureItems = null,
     signaturePngBytes,
     pages = [],
     xPercent = 78,
@@ -3118,11 +3219,25 @@ export async function signPdfDocument(
   if (!file) {
     throw new Error('Unggah berkas PDF terlebih dahulu.')
   }
-  if (!signaturePngBytes || !signaturePngBytes.byteLength) {
-    throw new Error('Buat atau unggah tanda tangan terlebih dahulu.')
-  }
-  if (!Array.isArray(pages) || pages.length === 0) {
-    throw new Error('Pilih minimal 1 halaman untuk ditempel tanda tangan.')
+
+  const normalizedItems = Array.isArray(signatureItems) && signatureItems.length > 0
+    ? signatureItems.filter((item) => item && item.pngBytes && item.pngBytes.byteLength)
+    : signaturePngBytes && signaturePngBytes.byteLength
+      ? [
+          {
+            pngBytes: signaturePngBytes,
+            xPercent,
+            yPercent,
+            scalePercent,
+            opacityPercent,
+            signerName,
+            signDateText,
+          },
+        ]
+      : []
+
+  if (normalizedItems.length === 0) {
+    throw new Error('Buat atau unggah minimal 1 tanda tangan atau stempel terlebih dahulu.')
   }
 
   if (onProgress) {
@@ -3132,93 +3247,116 @@ export async function signPdfDocument(
   const arrayBuffer = await file.arrayBuffer()
   const pdfDoc = await PDFDocument.load(arrayBuffer)
   const totalPages = pdfDoc.getPageCount()
-  const sigImage = await pdfDoc.embedPng(signaturePngBytes)
+  const defaultPages = Array.isArray(pages) ? pages.filter((p) => p >= 1 && p <= totalPages) : []
 
-  const cleanSigner = String(signerName || '').trim()
-  const cleanDate = String(signDateText || '').trim()
-  const hasCaption = Boolean(cleanSigner || cleanDate)
-  const fontBold = hasCaption ? await pdfDoc.embedFont(StandardFonts.HelveticaBold) : null
-  const fontRegular = hasCaption ? await pdfDoc.embedFont(StandardFonts.Helvetica) : null
+  const embeddedItems = []
+  let needFonts = false
+  const touchedPageSet = new Set()
+  for (let idx = 0; idx < normalizedItems.length; idx += 1) {
+    const raw = normalizedItems[idx]
+    const embeddedImage = await pdfDoc.embedPng(raw.pngBytes)
+    const cleanSigner = String(raw.signerName || '').trim()
+    const cleanDate = String(raw.signDateText || '').trim()
+    if (cleanSigner || cleanDate) needFonts = true
+    const itemPages = Array.isArray(raw.pages) && raw.pages.length > 0
+      ? raw.pages.filter((p) => p >= 1 && p <= totalPages)
+      : defaultPages
+    itemPages.forEach((p) => touchedPageSet.add(p))
+    embeddedItems.push({
+      sigImage: embeddedImage,
+      aspectRatio: embeddedImage.width / Math.max(1, embeddedImage.height),
+      xPercent: Math.max(0, Math.min(100, Number(raw.xPercent ?? 76))),
+      yPercent: Math.max(0, Math.min(100, Number(raw.yPercent ?? 80))),
+      scaleRatio: Math.max(0.06, Math.min(0.65, Number(raw.scalePercent ?? 22) / 100)),
+      opacity: Math.max(0.2, Math.min(1, Number(raw.opacityPercent ?? 100) / 100)),
+      cleanSigner,
+      cleanDate,
+      targetPageSet: new Set(itemPages),
+    })
+  }
 
-  const aspectRatio = sigImage.width / Math.max(1, sigImage.height)
-  const opacity = Math.max(0.2, Math.min(1, Number(opacityPercent || 100) / 100))
-  const scaleRatio = Math.max(0.08, Math.min(0.55, Number(scalePercent || 22) / 100))
+  const fontBold = needFonts ? await pdfDoc.embedFont(StandardFonts.HelveticaBold) : null
+  const fontRegular = needFonts ? await pdfDoc.embedFont(StandardFonts.Helvetica) : null
 
-  const validPages = pages.filter((p) => p >= 1 && p <= totalPages)
+  const validPages = Array.from(touchedPageSet).sort((a, b) => a - b)
   if (validPages.length === 0) {
-    throw new Error('Halaman tujuan berada di luar jumlah halaman dokumen.')
+    throw new Error('Letakkan minimal 1 tanda tangan atau stempel pada halaman dokumen.')
   }
 
   for (let i = 0; i < validPages.length; i += 1) {
     const pageNum = validPages[i]
     if (onProgress && (i === 0 || i === validPages.length - 1 || i % 3 === 0)) {
-      onProgress(`Menempelkan tanda tangan pada halaman ${pageNum} (${i + 1}/${validPages.length})...`)
+      onProgress(`Menempelkan tanda tangan & stempel pada halaman ${pageNum} (${i + 1}/${validPages.length})...`)
     }
 
     const page = pdfDoc.getPage(pageNum - 1)
     const { width: pageW, height: pageH } = page.getSize()
 
-    const sigW = pageW * scaleRatio
-    const sigH = sigW / aspectRatio
+    for (let j = 0; j < embeddedItems.length; j += 1) {
+      const item = embeddedItems[j]
+      if (!item.targetPageSet.has(pageNum)) continue
+      const sigW = pageW * item.scaleRatio
+      const sigH = sigW / item.aspectRatio
 
-    const signerFontSize = Math.max(8, Math.min(12, Math.round(pageW * 0.0165)))
-    const dateFontSize = Math.max(7, Math.min(10, Math.round(pageW * 0.014)))
-    const captionGap = 4
-    let captionHeight = 0
-    if (cleanSigner) captionHeight += signerFontSize + captionGap
-    if (cleanDate) captionHeight += dateFontSize + 3
+      const signerFontSize = Math.max(8, Math.min(12, Math.round(pageW * 0.0165)))
+      const dateFontSize = Math.max(7, Math.min(10, Math.round(pageW * 0.014)))
+      const captionGap = 4
+      let captionHeight = 0
+      if (item.cleanSigner) captionHeight += signerFontSize + captionGap
+      if (item.cleanDate) captionHeight += dateFontSize + 3
 
-    const totalStampH = sigH + captionHeight
-    const centerX = pageW * (Math.max(0, Math.min(100, Number(xPercent))) / 100)
-    const centerYFromTop = pageH * (Math.max(0, Math.min(100, Number(yPercent))) / 100)
+      const totalStampH = sigH + captionHeight
+      const centerX = pageW * (item.xPercent / 100)
+      const centerYFromTop = pageH * (item.yPercent / 100)
 
-    const drawX = Math.max(10, Math.min(pageW - sigW - 10, centerX - sigW / 2))
-    const topFromPageTop = Math.max(
-      10,
-      Math.min(pageH - totalStampH - 10, centerYFromTop - totalStampH / 2)
-    )
-    const sigBottomY = pageH - topFromPageTop - sigH
-
-    page.drawImage(sigImage, {
-      x: drawX,
-      y: sigBottomY,
-      width: sigW,
-      height: sigH,
-      opacity,
-    })
-
-    let textBaselineY = sigBottomY - captionGap - signerFontSize + 2
-    if (cleanSigner && fontBold) {
-      const textWidth = fontBold.widthOfTextAtSize(cleanSigner, signerFontSize)
-      const textX = Math.max(
+      const drawX = Math.max(10, Math.min(pageW - sigW - 10, centerX - sigW / 2))
+      const topFromPageTop = Math.max(
         10,
-        Math.min(pageW - textWidth - 10, drawX + sigW / 2 - textWidth / 2)
+        Math.min(pageH - totalStampH - 10, centerYFromTop - totalStampH / 2)
       )
-      page.drawText(cleanSigner, {
-        x: textX,
-        y: textBaselineY,
-        size: signerFontSize,
-        font: fontBold,
-        color: rgb(0.08, 0.07, 0.07),
-        opacity,
-      })
-      textBaselineY -= dateFontSize + 3
-    }
+      const sigBottomY = pageH - topFromPageTop - sigH
 
-    if (cleanDate && fontRegular) {
-      const dateWidth = fontRegular.widthOfTextAtSize(cleanDate, dateFontSize)
-      const dateX = Math.max(
-        10,
-        Math.min(pageW - dateWidth - 10, drawX + sigW / 2 - dateWidth / 2)
-      )
-      page.drawText(cleanDate, {
-        x: dateX,
-        y: textBaselineY,
-        size: dateFontSize,
-        font: fontRegular,
-        color: rgb(0.3, 0.26, 0.28),
-        opacity,
+      page.drawImage(item.sigImage, {
+        x: drawX,
+        y: sigBottomY,
+        width: sigW,
+        height: sigH,
+        opacity: item.opacity,
       })
+
+      let textBaselineY = sigBottomY - captionGap - signerFontSize + 2
+      if (item.cleanSigner && fontBold) {
+        const textWidth = fontBold.widthOfTextAtSize(item.cleanSigner, signerFontSize)
+        const textX = Math.max(
+          10,
+          Math.min(pageW - textWidth - 10, drawX + sigW / 2 - textWidth / 2)
+        )
+        page.drawText(item.cleanSigner, {
+          x: textX,
+          y: textBaselineY,
+          size: signerFontSize,
+          font: fontBold,
+          color: rgb(0.08, 0.07, 0.07),
+          opacity: item.opacity,
+        })
+        textBaselineY -= dateFontSize + 3
+      }
+
+      if (item.cleanDate && fontRegular) {
+        const dateWidth = fontRegular.widthOfTextAtSize(item.cleanDate, dateFontSize)
+        const dateX = Math.max(
+          10,
+          Math.min(pageW - dateWidth - 10, drawX + sigW / 2 - dateWidth / 2)
+        )
+        page.drawText(item.cleanDate, {
+          x: dateX,
+          y: textBaselineY,
+          size: dateFontSize,
+          font: fontRegular,
+          color: rgb(0.3, 0.26, 0.28),
+          opacity: item.opacity,
+        })
+      }
     }
   }
 
@@ -3238,5 +3376,338 @@ export async function signPdfDocument(
     signedPageCount: validPages.length,
     signedPages: validPages,
     size: pdfBytes.byteLength,
+  }
+}
+
+export async function inspectImageFile(file) {
+  if (!file) {
+    throw new Error('Berkas gambar tidak ditemukan.')
+  }
+  const isSupportedImage =
+    /^image\/(png|jpe?g|webp)$/i.test(file.type || '') ||
+    /\.(png|jpe?g|webp)$/i.test(String(file.name || ''))
+  if (!isSupportedImage) {
+    throw new Error(
+      `Berkas "${file.name}" bukan format gambar yang didukung. Gunakan JPG, PNG, atau WEBP.`
+    )
+  }
+
+  const objectUrl = URL.createObjectURL(file)
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const el = new Image()
+      el.onload = () => resolve(el)
+      el.onerror = () => reject(new Error(`Gagal memuat gambar "${file.name}".`))
+      el.src = objectUrl
+    })
+
+    const width = Math.max(1, img.naturalWidth || img.width || 1)
+    const height = Math.max(1, img.naturalHeight || img.height || 1)
+
+    const thumbMax = 240
+    const thumbScale = Math.min(1, thumbMax / Math.max(width, height))
+    const thumbW = Math.max(16, Math.round(width * thumbScale))
+    const thumbH = Math.max(16, Math.round(height * thumbScale))
+    const thumbCanvas = document.createElement('canvas')
+    thumbCanvas.width = thumbW
+    thumbCanvas.height = thumbH
+    const thumbCtx = thumbCanvas.getContext('2d')
+    thumbCtx.fillStyle = '#ffffff'
+    thumbCtx.fillRect(0, 0, thumbW, thumbH)
+    thumbCtx.drawImage(img, 0, 0, thumbW, thumbH)
+    const previewUrl = thumbCanvas.toDataURL('image/jpeg', 0.84)
+
+    const extMatch = String(file.name || '').match(/\.(png|jpe?g|webp)$/i)
+    const formatLabel = extMatch
+      ? extMatch[1].toUpperCase().replace('JPEG', 'JPG')
+      : (file.type || 'IMG').replace('image/', '').toUpperCase()
+
+    return {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      file,
+      name: file.name,
+      size: file.size,
+      width,
+      height,
+      formatLabel,
+      previewUrl,
+    }
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+  }
+}
+
+async function normalizeImageFileForPdfEmbed(file) {
+  const objectUrl = URL.createObjectURL(file)
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const el = new Image()
+      el.onload = () => resolve(el)
+      el.onerror = () => reject(new Error(`Gagal membaca gambar "${file.name}".`))
+      el.src = objectUrl
+    })
+
+    const width = Math.max(1, img.naturalWidth || img.width || 1)
+    const height = Math.max(1, img.naturalHeight || img.height || 1)
+    const maxDim = 2600
+    const scale = Math.min(1, maxDim / Math.max(width, height))
+    const targetW = Math.max(1, Math.round(width * scale))
+    const targetH = Math.max(1, Math.round(height * scale))
+
+    const canvas = document.createElement('canvas')
+    canvas.width = targetW
+    canvas.height = targetH
+    const ctx = canvas.getContext('2d')
+
+    const isPng =
+      /^image\/png$/i.test(file.type || '') || /\.png$/i.test(String(file.name || ''))
+    if (!isPng) {
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, targetW, targetH)
+    }
+    ctx.drawImage(img, 0, 0, targetW, targetH)
+
+    const mimeType = isPng ? 'image/png' : 'image/jpeg'
+    const blob = await new Promise((resolve) =>
+      canvas.toBlob(resolve, mimeType, isPng ? undefined : 0.92)
+    )
+    const buf = await blob.arrayBuffer()
+    return {
+      bytes: new Uint8Array(buf),
+      isPng,
+      width: targetW,
+      height: targetH,
+    }
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+  }
+}
+
+export async function convertImagesToPdf(
+  items = [],
+  { pageSize = 'a4', orientation = 'auto', margin = 'small' } = {},
+  onProgress
+) {
+  if (!Array.isArray(items) || items.length < 1) {
+    throw new Error('Unggah minimal 1 gambar untuk diubah menjadi PDF.')
+  }
+
+  const pdfDoc = await PDFDocument.create()
+  const marginMap = {
+    none: 0,
+    small: 24,
+    normal: 44,
+  }
+  const marginPt = marginMap[margin] ?? 24
+
+  const pagePresets = {
+    a4: [595.28, 841.89],
+    letter: [612, 792],
+  }
+
+  for (let i = 0; i < items.length; i += 1) {
+    const item = items[i]
+    if (onProgress) {
+      onProgress(
+        `Memproses gambar ${i + 1} dari ${items.length}: "${truncateFileName(item.name, 26)}"...`
+      )
+    }
+
+    const normalized = await normalizeImageFileForPdfEmbed(item.file)
+    const embeddedImg = normalized.isPng
+      ? await pdfDoc.embedPng(normalized.bytes)
+      : await pdfDoc.embedJpg(normalized.bytes)
+
+    const imgW = embeddedImg.width
+    const imgH = embeddedImg.height
+
+    let pageW
+    let pageH
+
+    if (pageSize === 'fit') {
+      const fitScale = 720 / Math.max(imgW, imgH, 1)
+      const baseW = Math.max(180, Math.round(imgW * Math.min(1, fitScale)))
+      const baseH = Math.max(180, Math.round(imgH * Math.min(1, fitScale)))
+      pageW = baseW + marginPt * 2
+      pageH = baseH + marginPt * 2
+    } else {
+      const [presetShort, presetLong] = pagePresets[pageSize] || pagePresets.a4
+      const useLandscape =
+        orientation === 'landscape' || (orientation === 'auto' && imgW > imgH)
+      pageW = useLandscape ? presetLong : presetShort
+      pageH = useLandscape ? presetShort : presetLong
+    }
+
+    const page = pdfDoc.addPage([pageW, pageH])
+    const availW = Math.max(36, pageW - marginPt * 2)
+    const availH = Math.max(36, pageH - marginPt * 2)
+    const drawScale = Math.min(availW / Math.max(1, imgW), availH / Math.max(1, imgH))
+    const drawW = imgW * drawScale
+    const drawH = imgH * drawScale
+    const drawX = (pageW - drawW) / 2
+    const drawY = (pageH - drawH) / 2
+
+    page.drawImage(embeddedImg, {
+      x: drawX,
+      y: drawY,
+      width: drawW,
+      height: drawH,
+    })
+  }
+
+  if (onProgress) {
+    onProgress('Menyusun berkas PDF akhir...')
+  }
+
+  const pdfBytes = await pdfDoc.save()
+  const firstBase = String(items[0]?.name || 'gambar')
+    .replace(/\.(png|jpe?g|webp)$/i, '')
+    .trim()
+    .replace(/[^\w\s.-]/g, '')
+    .replace(/\s+/g, '-') || 'gambar'
+  const fileName =
+    items.length === 1
+      ? `${firstBase}.pdf`
+      : `${firstBase}-dan-${items.length - 1}-lainnya.pdf`
+
+  return {
+    pdfBytes,
+    fileName,
+    totalPages: items.length,
+    fileCount: items.length,
+    size: pdfBytes.byteLength,
+  }
+}
+
+export async function convertPdfToImages(
+  {
+    file,
+    mode = 'all',
+    rangeInput = '',
+    format = 'png',
+    quality = 'high',
+  } = {},
+  onProgress
+) {
+  if (!file) {
+    throw new Error('Unggah berkas PDF terlebih dahulu.')
+  }
+
+  if (onProgress) {
+    onProgress(`Membaca dokumen "${truncateFileName(file.name, 26)}"...`)
+  }
+
+  const arrayBuffer = await file.arrayBuffer()
+  const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true })
+  const totalPages = pdfDoc.getPageCount()
+  const baseName = stripPdfExtension(file.name)
+
+  let targetPages
+  if (mode === 'range') {
+    const parsed = parsePageRanges(rangeInput, totalPages)
+    if (parsed.error) {
+      throw new Error(parsed.error)
+    }
+    targetPages = parsed.pages
+  } else {
+    targetPages = Array.from({ length: totalPages }, (_, idx) => idx + 1)
+  }
+
+  if (targetPages.length === 0) {
+    throw new Error('Tidak ada halaman yang dipilih untuk diubah menjadi gambar.')
+  }
+
+  const isJpg = format === 'jpg' || format === 'jpeg'
+  const mimeType = isJpg ? 'image/jpeg' : 'image/png'
+  const ext = isJpg ? 'jpg' : 'png'
+  const maxDimension = quality === 'high' ? 1680 : 1200
+  const maxScale = quality === 'high' ? 2.6 : 1.8
+  const jpegQuality = quality === 'high' ? 0.92 : 0.82
+
+  const outputFiles = []
+  let pdfjsDoc
+  try {
+    pdfjsDoc = await pdfjsLib.getDocument({
+      data: new Uint8Array(arrayBuffer.slice(0)),
+      useSystemFonts: true,
+    }).promise
+  } catch {
+    pdfjsDoc = null
+  }
+
+  try {
+    for (let i = 0; i < targetPages.length; i += 1) {
+      const pageNum = targetPages[i]
+      if (onProgress) {
+        onProgress(`Merender halaman ${pageNum} ke ${ext.toUpperCase()} (${i + 1}/${targetPages.length})...`)
+      }
+
+      const rendered = await renderPdfPagePreviewToDataUrl(file, pageNum, {
+        arrayBuffer,
+        pdfDoc,
+        pdfjsDoc,
+        maxDimension,
+        maxScale,
+        mimeType,
+        quality: jpegQuality,
+        skipSinglePagePdf: true,
+      })
+
+      const blob = await new Promise((resolve) =>
+        rendered.canvas.toBlob(resolve, mimeType, isJpg ? jpegQuality : undefined)
+      )
+      const buf = await blob.arrayBuffer()
+      const bytes = new Uint8Array(buf)
+      const padNum = String(pageNum).padStart(String(totalPages).length > 1 ? 2 : 1, '0')
+      const imgFileName = `${baseName}-hal-${padNum}.${ext}`
+
+      outputFiles.push({
+        id: `img-page-${pageNum}`,
+        name: imgFileName,
+        label: `Halaman ${pageNum}`,
+        pageNumber: pageNum,
+        format: ext.toUpperCase(),
+        mimeType,
+        width: rendered.pixelWidth || rendered.width,
+        height: rendered.pixelHeight || rendered.height,
+        size: bytes.byteLength,
+        bytes,
+        dataUrl: rendered.dataUrl,
+      })
+    }
+  } finally {
+    if (pdfjsDoc) {
+      try {
+        await pdfjsDoc.destroy()
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+  }
+
+  let zipBlob = null
+  const zipFileName = `${baseName}-${ext}-images.zip`
+
+  if (outputFiles.length > 1) {
+    if (onProgress) {
+      onProgress(`Mengemas ${outputFiles.length} gambar ke dalam arsip .zip...`)
+    }
+    const zip = new JSZip()
+    outputFiles.forEach((item) => {
+      zip.file(item.name, item.bytes)
+    })
+    zipBlob = await zip.generateAsync({ type: 'blob' })
+  }
+
+  return {
+    sourceName: file.name,
+    totalPages,
+    extractedCount: outputFiles.length,
+    format: ext.toUpperCase(),
+    mimeType,
+    files: outputFiles,
+    zipBlob,
+    zipFileName,
+    primaryFile: outputFiles.length === 1 ? outputFiles[0] : null,
   }
 }

@@ -1,8 +1,6 @@
 import { useState, useRef } from 'react'
 import {
   IconArrowUpRight,
-  IconArrowUp,
-  IconArrowDown,
   IconCheck,
   IconClose,
   IconDownload,
@@ -17,6 +15,7 @@ import {
   formatFileSize,
   inspectPdfFile,
   mergePdfFiles,
+  renderPdfPagePreviewToDataUrl,
   triggerBrowserDownload,
   truncateFileName,
 } from '../utils/pdfTools'
@@ -26,7 +25,9 @@ export default function MergePdfPage() {
   const { lang } = useLanguage()
   const isEn = lang === 'en'
   const [pdfItems, setPdfItems] = useState([])
-  const [isDragging, setIsDragging] = useState(false)
+  const [isDraggingFiles, setIsDraggingFiles] = useState(false)
+  const [draggedId, setDraggedId] = useState(null)
+  const [dropTarget, setDropTarget] = useState(null)
   const [isInspecting, setIsInspecting] = useState(false)
   const [isMerging, setIsMerging] = useState(false)
   const [processStep, setProcessStep] = useState('')
@@ -44,8 +45,8 @@ export default function MergePdfPage() {
     setIsInspecting(true)
     setProcessStep(
       isEn
-        ? 'Reading PDF files & counting pages...'
-        : 'Membaca berkas PDF & menghitung jumlah halaman...'
+        ? 'Reading PDF files & rendering first-page previews...'
+        : 'Membaca berkas PDF & menyiapkan pratinjau halaman pertama...'
     )
 
     const newItems = []
@@ -54,7 +55,18 @@ export default function MergePdfPage() {
     for (const file of files) {
       try {
         const info = await inspectPdfFile(file)
-        newItems.push(info)
+        let previewUrl = ''
+        try {
+          const preview = await renderPdfPagePreviewToDataUrl(file, 1, {
+            maxDimension: 360,
+            maxScale: 1.2,
+            skipSinglePagePdf: true,
+          })
+          previewUrl = preview?.dataUrl || ''
+        } catch {
+          previewUrl = ''
+        }
+        newItems.push({ ...info, previewUrl })
       } catch (err) {
         errors.push(
           err.message ||
@@ -76,16 +88,96 @@ export default function MergePdfPage() {
     setProcessStep('')
   }
 
-  const handleMoveItem = (index, direction) => {
+  const reorderItems = (fromIndex, toIndex) => {
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return
     setPdfItems((prev) => {
-      const targetIndex = index + direction
-      if (targetIndex < 0 || targetIndex >= prev.length) return prev
+      if (fromIndex >= prev.length || toIndex >= prev.length) return prev
       const copy = [...prev]
-      const [moved] = copy.splice(index, 1)
-      copy.splice(targetIndex, 0, moved)
+      const [moved] = copy.splice(fromIndex, 1)
+      copy.splice(toIndex, 0, moved)
       return copy
     })
     setMergedResult(null)
+  }
+
+  const handleCardDragStart = (e, id) => {
+    if (isBusy) return
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move'
+      e.dataTransfer.setData('text/plain', id)
+      if (typeof e.dataTransfer.setDragImage === 'function' && e.currentTarget) {
+        const rect = e.currentTarget.getBoundingClientRect()
+        e.dataTransfer.setDragImage(
+          e.currentTarget,
+          Math.round(rect.width / 2),
+          Math.min(48, Math.round(rect.height / 3))
+        )
+      }
+    }
+    requestAnimationFrame(() => {
+      setDraggedId(id)
+      setDropTarget(null)
+    })
+  }
+
+  const handleCardDragOver = (e, targetId) => {
+    if (!draggedId || draggedId === targetId) return
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'move'
+    }
+    const rect = e.currentTarget.getBoundingClientRect()
+    const position = e.clientX > rect.left + rect.width / 2 ? 'after' : 'before'
+    if (!dropTarget || dropTarget.id !== targetId || dropTarget.position !== position) {
+      setDropTarget({ id: targetId, position })
+    }
+  }
+
+  const handleCardDrop = (e, targetId) => {
+    if (!draggedId) return
+    e.preventDefault()
+    e.stopPropagation()
+    if (draggedId !== targetId) {
+      const fromIndex = pdfItems.findIndex((item) => item.id === draggedId)
+      const targetIndex = pdfItems.findIndex((item) => item.id === targetId)
+      if (fromIndex !== -1 && targetIndex !== -1) {
+        const rect = e.currentTarget.getBoundingClientRect()
+        const position =
+          dropTarget && dropTarget.id === targetId
+            ? dropTarget.position
+            : e.clientX > rect.left + rect.width / 2
+              ? 'after'
+              : 'before'
+        let insertAt = position === 'after' ? targetIndex + 1 : targetIndex
+        if (fromIndex < insertAt) {
+          insertAt -= 1
+        }
+        reorderItems(fromIndex, insertAt)
+      }
+    }
+    setDraggedId(null)
+    setDropTarget(null)
+  }
+
+  const handleCardDragEnd = () => {
+    setDraggedId(null)
+    setDropTarget(null)
+  }
+
+  const handleCardKeyDown = (e, idx) => {
+    if (isBusy) return
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      if (idx > 0) {
+        e.preventDefault()
+        reorderItems(idx, idx - 1)
+      }
+    } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      if (idx < pdfItems.length - 1) {
+        e.preventDefault()
+        reorderItems(idx, idx + 1)
+      }
+    }
   }
 
   const handleRemoveItem = (id) => {
@@ -157,17 +249,27 @@ export default function MergePdfPage() {
           : 'Gabung beberapa dokumen PDF jadi satu'}
       </p>
 
-      {/* CENTRAL WORKSPACE CARD */}
       <div
-        className={`clean-workspace-card ${isDragging ? 'is-dragging' : ''}`}
+        className={`clean-workspace-card ${isDraggingFiles ? 'is-dragging' : ''}`}
         onDragOver={(e) => {
+          if (draggedId) {
+            e.preventDefault()
+            if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
+            return
+          }
           e.preventDefault()
-          setIsDragging(true)
+          setIsDraggingFiles(true)
         }}
-        onDragLeave={() => setIsDragging(false)}
+        onDragLeave={() => setIsDraggingFiles(false)}
         onDrop={(e) => {
+          if (draggedId) {
+            e.preventDefault()
+            setDraggedId(null)
+            setDropTarget(null)
+            return
+          }
           e.preventDefault()
-          setIsDragging(false)
+          setIsDraggingFiles(false)
           if (e.dataTransfer?.files?.length) {
             handleAddFiles(e.dataTransfer.files)
           }
@@ -187,7 +289,6 @@ export default function MergePdfPage() {
           }}
         />
 
-        {/* DROPZONE ATAU DAFTAR BERKAS PDF */}
         {pdfItems.length === 0 ? (
           <>
             <div
@@ -229,7 +330,7 @@ export default function MergePdfPage() {
                   <IconShield size={14} />
                   <span>
                     {isEn
-                      ? '100% Local • Privacy Protected'
+                      ? '100% Local - Privacy Protected'
                       : '100% Lokal - Privasi Terjaga'}
                   </span>
                 </span>
@@ -240,11 +341,16 @@ export default function MergePdfPage() {
           <>
             <div className="pdf-file-list-container">
               <div className="pdf-file-list-head">
-                <div>
+                <div className="pdf-merge-head-info">
                   <span>
                     {isEn
                       ? `Merge Order (${pdfItems.length} files • ${totalPages} Pages • ${formatFileSize(totalSize)})`
-                      : `Urutan Penggabungan (${pdfItems.length} file • ${totalPages} Halaman • ${formatFileSize(totalSize)})`}
+                      : `Urutan Penggabungan (${formatFileSize(totalSize)})`}
+                  </span>
+                  <span className="pdf-file-list-hint">
+                    {isEn
+                      ? 'Drag cards to reorder'
+                      : 'Seret kartu untuk mengubah urutan'}
                   </span>
                 </div>
                 <div className="empty-doc-left">
@@ -270,74 +376,91 @@ export default function MergePdfPage() {
               </div>
 
               <ul
-                className="pdf-file-list"
+                className="pdf-merge-grid"
                 aria-label={
-                  isEn ? 'List of PDF files to be merged' : 'Daftar berkas PDF yang akan digabung'
+                  isEn
+                    ? 'Draggable PDF cards to reorder before merging'
+                    : 'Daftar kartu PDF yang dapat diseret untuk mengatur urutan'
                 }
               >
-                {pdfItems.map((item, idx) => (
-                  <li key={item.id} className="pdf-file-item">
-                    <div className="pdf-file-item-left">
-                      <span
-                        className="pdf-file-order-badge"
-                        aria-label={isEn ? `Order ${idx + 1}` : `Urutan ${idx + 1}`}
-                      >
-                        {idx + 1}
-                      </span>
-                      <span className="active-doc-icon pdf-item-icon">
-                        <IconFileText size={16} />
-                      </span>
-                      <div className="pdf-file-meta">
-                        <strong className="pdf-file-name" title={item.name}>
-                          {truncateFileName(item.name, 38)}
-                        </strong>
-                        <div className="pdf-file-submeta">
-                          <span className="active-doc-tag">
-                            {item.pageCount} {isEn ? 'Pages' : 'Halaman'}
-                          </span>
-                          <span className="pdf-file-size">{formatFileSize(item.size)}</span>
-                        </div>
+                {pdfItems.map((item, idx) => {
+                  const isDragged = draggedId === item.id
+                  const isDropBefore =
+                    dropTarget?.id === item.id &&
+                    dropTarget?.position === 'before' &&
+                    draggedId !== item.id
+                  const isDropAfter =
+                    dropTarget?.id === item.id &&
+                    dropTarget?.position === 'after' &&
+                    draggedId !== item.id
+                  return (
+                    <li
+                      key={item.id}
+                      className={`pdf-merge-card ${isDragged ? 'is-dragging-card' : ''} ${isDropBefore ? 'is-drop-before' : ''} ${isDropAfter ? 'is-drop-after' : ''}`}
+                      draggable={!isBusy}
+                      tabIndex={0}
+                      onDragStart={(e) => handleCardDragStart(e, item.id)}
+                      onDragOver={(e) => handleCardDragOver(e, item.id)}
+                      onDrop={(e) => handleCardDrop(e, item.id)}
+                      onDragEnd={handleCardDragEnd}
+                      onKeyDown={(e) => handleCardKeyDown(e, idx)}
+                      aria-label={
+                        isEn
+                          ? `Position ${idx + 1}: ${item.name}. Use arrow keys or drag to reorder.`
+                          : `Urutan ${idx + 1}: ${item.name}. Seret atau gunakan tombol panah keyboard untuk mengatur posisi.`
+                      }
+                    >
+                      <div className="pdf-merge-card-top">
+                        <span className="pdf-file-order-badge">{idx + 1}</span>
+                        <span className="active-doc-tag">
+                          {item.pageCount} {isEn ? 'Pgs' : 'Hal'}
+                        </span>
+                        <button
+                          type="button"
+                          className="doc-remove-btn pdf-delete-btn pdf-merge-remove-btn"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleRemoveItem(item.id)
+                          }}
+                          disabled={isBusy}
+                          title={isEn ? 'Remove file' : 'Hapus file'}
+                          aria-label={isEn ? `Remove ${item.name}` : `Hapus ${item.name}`}
+                        >
+                          <IconClose size={12} />
+                        </button>
                       </div>
-                    </div>
 
-                    <div className="pdf-file-item-actions">
-                      <button
-                        type="button"
-                        className="pdf-order-btn"
-                        onClick={() => handleMoveItem(idx, -1)}
-                        disabled={idx === 0 || isBusy}
-                        title={isEn ? 'Move up' : 'Geser ke atas'}
-                        aria-label={isEn ? `Move ${item.name} up` : `Geser ${item.name} ke atas`}
-                      >
-                        <IconArrowUp size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        className="pdf-order-btn"
-                        onClick={() => handleMoveItem(idx, 1)}
-                        disabled={idx === pdfItems.length - 1 || isBusy}
-                        title={isEn ? 'Move down' : 'Geser ke bawah'}
-                        aria-label={isEn ? `Move ${item.name} down` : `Geser ${item.name} ke bawah`}
-                      >
-                        <IconArrowDown size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        className="doc-remove-btn pdf-delete-btn"
-                        onClick={() => handleRemoveItem(item.id)}
-                        disabled={isBusy}
-                        title={isEn ? 'Remove file from list' : 'Hapus file dari daftar'}
-                        aria-label={isEn ? `Remove ${item.name}` : `Hapus ${item.name}`}
-                      >
-                        <IconClose size={12} />
-                      </button>
-                    </div>
-                  </li>
-                ))}
+                      <div className="pdf-merge-preview-frame">
+                        {item.previewUrl ? (
+                          <img
+                            src={item.previewUrl}
+                            alt={
+                              isEn
+                                ? `First page preview of ${item.name}`
+                                : `Pratinjau halaman pertama ${item.name}`
+                            }
+                            className="pdf-merge-preview-img"
+                            draggable={false}
+                          />
+                        ) : (
+                          <div className="pdf-merge-preview-fallback">
+                            <IconFileText size={28} />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="pdf-merge-card-meta">
+                        <strong className="pdf-merge-card-name" title={item.name}>
+                          {truncateFileName(item.name, 22)}
+                        </strong>
+                        <span className="pdf-file-size">{formatFileSize(item.size)}</span>
+                      </div>
+                    </li>
+                  )
+                })}
               </ul>
             </div>
 
-            {/* PRIMARY ACTION ROW */}
             <div className="pdf-action-bar">
               <div className="pdf-action-summary">
                 <span className="pdf-privacy-badge">
@@ -388,7 +511,6 @@ export default function MergePdfPage() {
           </div>
         )}
 
-        {/* RESULT PREVIEW & RE-DOWNLOAD */}
         {mergedResult && !isBusy && (
           <div className="clean-result-container" ref={resultRef}>
             <div className="clean-result-header">

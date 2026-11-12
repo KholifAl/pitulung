@@ -48,6 +48,8 @@ import {
   IconSplitPdf,
   IconCompressPdf,
   IconSignPdf,
+  IconImageToPdf,
+  IconPdfToImage,
   IconChevronDown,
   IconGlobe,
   IconMail,
@@ -59,6 +61,8 @@ import MergePdfPage from './pages/MergePdfPage'
 import SplitPdfPage from './pages/SplitPdfPage'
 import CompressPdfPage from './pages/CompressPdfPage'
 import SignPdfPage from './pages/SignPdfPage'
+import ImageToPdfPage from './pages/ImageToPdfPage'
+import PdfToImagePage from './pages/PdfToImagePage'
 import LegalPage, { LEGAL_PAGES_META, getLegalPagesMeta, AboutPage } from './pages/LegalPage'
 import { LanguageContext } from './i18n/LanguageContext'
 import './App.css'
@@ -171,6 +175,20 @@ const NAV_TOOL_ROUTES_BY_LANG = {
       badge: 'PDF',
       icon: IconSignPdf,
     },
+    {
+      path: '/image-to-pdf',
+      label: 'Gambar ke PDF',
+      shortDesc: 'Susun foto JPG, PNG, WEBP jadi PDF',
+      badge: 'PDF',
+      icon: IconImageToPdf,
+    },
+    {
+      path: '/pdf-to-image',
+      label: 'PDF ke Gambar',
+      shortDesc: 'Ubah halaman PDF jadi PNG atau JPG',
+      badge: 'PDF',
+      icon: IconPdfToImage,
+    },
   ],
   en: [
     {
@@ -207,6 +225,20 @@ const NAV_TOOL_ROUTES_BY_LANG = {
       shortDesc: 'Add signature to PDF pages in browser',
       badge: 'PDF',
       icon: IconSignPdf,
+    },
+    {
+      path: '/image-to-pdf',
+      label: 'Image to PDF',
+      shortDesc: 'Convert JPG, PNG, WEBP images to PDF',
+      badge: 'PDF',
+      icon: IconImageToPdf,
+    },
+    {
+      path: '/pdf-to-image',
+      label: 'PDF to Image',
+      shortDesc: 'Export PDF pages into PNG or JPG images',
+      badge: 'PDF',
+      icon: IconPdfToImage,
     },
   ],
 }
@@ -417,9 +449,10 @@ function TinulungAppShell() {
     if (!firstCard) return
     const cardW = firstCard.getBoundingClientRect().width
     const gap = 14
+    const totalCards = track.querySelectorAll('.quick-feature-card').length || 7
     const maxScroll = Math.max(0, track.scrollWidth - track.clientWidth)
     const visibleCount = Math.max(1, Math.round(track.clientWidth / (cardW + gap)))
-    const maxIndex = Math.max(0, 5 - visibleCount)
+    const maxIndex = Math.max(0, totalCards - visibleCount)
     const normalized = maxIndex > 0 ? ((targetIndex % (maxIndex + 1)) + (maxIndex + 1)) % (maxIndex + 1) : 0
     const nextLeft = Math.min(maxScroll, Math.round(normalized * (cardW + gap)))
     track.scrollTo({ left: nextLeft, behavior: 'smooth' })
@@ -1443,6 +1476,44 @@ function TinulungAppShell() {
                   : 'Gambar tanda tangan langsung atau unggah file tanda tangan ke semua halaman maupun interval halaman.'}
               </p>
             </button>
+
+            <button
+              type="button"
+              className="quick-feature-card"
+              onClick={() => navigate('/image-to-pdf')}
+            >
+              <div className="qf-top">
+                <span className="qf-number">{isEn ? 'IMAGE TO PDF' : 'GAMBAR KE PDF'}</span>
+                <span className="qf-arrow">
+                  <IconArrowUpRight size={14} />
+                </span>
+              </div>
+              <h3>{isEn ? 'Convert Images to PDF' : 'Ubah Gambar ke PDF'}</h3>
+              <p>
+                {isEn
+                  ? 'Arrange JPG, PNG, or WEBP photos and combine them into a clean PDF document.'
+                  : 'Susun urutan foto JPG, PNG, atau WEBP dan ubah menjadi satu dokumen PDF rapi.'}
+              </p>
+            </button>
+
+            <button
+              type="button"
+              className="quick-feature-card"
+              onClick={() => navigate('/pdf-to-image')}
+            >
+              <div className="qf-top">
+                <span className="qf-number">{isEn ? 'PDF TO IMAGE' : 'PDF KE GAMBAR'}</span>
+                <span className="qf-arrow">
+                  <IconArrowUpRight size={14} />
+                </span>
+              </div>
+              <h3>{isEn ? 'Convert PDF to Image' : 'Ubah PDF ke Gambar'}</h3>
+              <p>
+                {isEn
+                  ? 'Export all PDF pages or custom page ranges into sharp PNG or JPG images.'
+                  : 'Simpan seluruh halaman PDF atau rentang pilihan menjadi gambar PNG maupun JPG tajam.'}
+              </p>
+            </button>
           </div>
 
           <button
@@ -1461,7 +1532,7 @@ function TinulungAppShell() {
           role="tablist"
           aria-label={isEn ? 'Feature slider position' : 'Posisi slider fitur'}
         >
-          {[0, 1, 2].map((dotIdx) => (
+          {[0, 1, 2, 3, 4].map((dotIdx) => (
             <button
               key={dotIdx}
               type="button"
@@ -1589,6 +1660,8 @@ function TinulungAppShell() {
             <Route path="/split-pdf" element={<SplitPdfPage />} />
             <Route path="/compress-pdf" element={<CompressPdfPage />} />
             <Route path="/sign-pdf" element={<SignPdfPage />} />
+            <Route path="/image-to-pdf" element={<ImageToPdfPage />} />
+            <Route path="/pdf-to-image" element={<PdfToImagePage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/tentang" element={<AboutPage />} />
             {LEGAL_PAGES_META.map((page) => (

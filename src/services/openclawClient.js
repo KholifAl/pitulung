@@ -4,10 +4,10 @@
  */
 
 export const AI_PROVIDERS = [
-  { id: 'local', label: 'Bawaan (Instan, tanpa AI)', defaultModel: '', needsKey: false, models: [] },
+  { id: 'local', label: 'Default (Instan)', defaultModel: '', needsKey: false, models: [] },
   {
     id: 'openclaw',
-    label: 'OpenClaw (Server Lokal)',
+    label: 'OpenClaw (Lokal)',
     defaultModel: 'openclaw:main',
     needsKey: false,
     models: [

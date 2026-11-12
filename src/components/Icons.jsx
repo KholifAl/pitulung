@@ -367,6 +367,60 @@ export function IconSignPdf({ size = 15 }) {
   )
 }
 
+export function IconImageToPdf({ size = 15 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="2.5" y="4" width="11" height="10" rx="2" stroke="currentColor" strokeWidth="1.9" />
+      <circle cx="6.2" cy="7.5" r="1.1" fill="currentColor" />
+      <path
+        d="M3.5 12.5L6.5 9.8L9 12L10.8 10.5L12.5 12.5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M14 20H19.5C20.6046 20 21.5 19.1046 21.5 18V10.5L18 7H15.5"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8.5 17.5H14M14 17.5L11.8 15.3M14 17.5L11.8 19.7"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+export function IconPdfToImage({ size = 15 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M11 3.5H5.5C4.39543 3.5 3.5 4.39543 3.5 5.5V14.5C3.5 15.6046 4.39543 16.5 5.5 16.5H9"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M6.5 8H10.5M6.5 11.5H9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <rect x="11.5" y="10.5" width="10" height="10" rx="2" stroke="currentColor" strokeWidth="1.9" />
+      <circle cx="14.8" cy="13.8" r="1.1" fill="currentColor" />
+      <path
+        d="M12.5 19L15.3 16.2L17.6 18.2L19.2 16.8L20.8 19"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 export function IconPlus({ size = 14 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
