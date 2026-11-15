@@ -881,15 +881,17 @@ function TinulungAppShell() {
   }))
 
   const homeExtractionPage = (
-    <section className="clean-hero-section">
+    <section className="clean-hero-section home-extract-hero">
       <h1 className="editorial-hero-title">
         {isEn ? 'How can we help' : 'Mau dibantu'}{' '}
         <span className="inline-arrow-pill">
           <IconArrowRight size={28} />
         </span>{' '}
-        {isEn ? 'you' : 'apa'}
-        <br />
-        {isEn ? 'today?' : 'hari ini?'}
+        <span className="hero-tail-phrase">
+          {isEn ? 'you' : 'apa'}
+          <br className="hero-desktop-br" />{' '}
+          {isEn ? 'today?' : 'hari ini?'}
+        </span>
       </h1>
 
       <p className="editorial-hero-subtitle">

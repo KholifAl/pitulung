@@ -203,6 +203,18 @@
   padding: 48px 0 28px;
 }
 
+.clean-hero-section:not(.home-extract-hero) {
+  padding-bottom: 0;
+}
+
+.clean-hero-section:not(.home-extract-hero) .clean-workspace-card {
+  margin-bottom: 0;
+}
+
+.clean-hero-section:not(.home-extract-hero) + .clean-tipjar-banner {
+  margin-top: 24px;
+}
+
 .hero-top-meta {
   display: flex;
   align-items: center;
@@ -3302,6 +3314,7 @@
   }
 
   .clean-navbar {
+    position: relative;
     flex-wrap: nowrap;
     padding: 16px 0 14px;
     gap: 10px;
@@ -3309,8 +3322,27 @@
 
   .clean-navbar.is-island {
     margin-top: 10px;
-    max-width: 85%;
+    max-width: 88%;
     padding: 8px 10px 8px 14px;
+  }
+
+  .clean-navbar .nav-tools-dropdown {
+    position: absolute;
+    left: 50%;
+    top: calc(50% + 1px);
+    transform: translate(-50%, -50%);
+    z-index: 2;
+  }
+
+  .clean-navbar.is-island .nav-tools-dropdown {
+    top: 50%;
+  }
+
+  .clean-navbar .nav-tools-menu {
+    left: 50%;
+    right: auto;
+    margin-left: -122.5px;
+    top: calc(100% + 14px);
   }
 
   .brand-logo-text-img,
@@ -3349,54 +3381,44 @@
     gap: 6px;
   }
 
-  /* Hero Mobile: centered greeting + chat-style composer at bottom */
+  /* Hero Mobile (default for PDF/Image tools pages) */
   .clean-hero-section {
-    min-height: calc(100dvh - 72px);
-    padding: 32px 0 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    padding: 28px 0 22px;
+  }
+
+  .clean-hero-section:not(.home-extract-hero) {
+    padding-bottom: 0;
+  }
+
+  .clean-hero-section:not(.home-extract-hero) + .clean-tipjar-banner {
+    margin-top: 18px;
   }
 
   .editorial-hero-title {
-    font-size: clamp(2.25rem, 9.6vw, 2.95rem);
-    line-height: 1.12;
-    margin: auto auto 14px;
-    padding-top: 20px;
-    text-align: center;
+    font-size: clamp(2rem, 8.5vw, 2.65rem);
+    margin-bottom: 14px;
   }
 
   .inline-arrow-pill {
-    padding: 6px 19px;
-    margin: 0 5px;
+    padding: 6px 18px;
+    margin: 0 4px;
   }
 
   .inline-arrow-pill svg {
-    width: 23px;
-    height: 23px;
+    width: 22px;
+    height: 22px;
   }
 
   .editorial-hero-subtitle {
-    font-size: 0.94rem;
-    line-height: 1.5;
-    max-width: 310px;
-    margin: 0 auto auto;
-    padding: 0 0 56px;
-    text-align: center;
+    font-size: 0.96rem;
+    margin-bottom: 24px;
+    padding: 0 6px;
   }
 
-  /* Workspace Card: chat-composer layout at bottom on mobile */
+  /* Workspace Card & Center Alignments on Mobile (default for PDF/Image tools) */
   .clean-workspace-card {
-    width: 100%;
-    margin: 0 auto 12px;
-    padding: 14px;
-    border-radius: 24px;
-  }
-
-  .workspace-doc-bar {
-    margin-bottom: 10px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--border-light);
+    padding: 18px 16px;
+    border-radius: 22px;
   }
 
   .empty-doc-strip {
@@ -3404,26 +3426,12 @@
     align-items: center;
     justify-content: center;
     text-align: center;
-    gap: 6px;
+    gap: 8px;
   }
 
   .empty-doc-left {
     justify-content: center;
     width: 100%;
-    gap: 8px;
-  }
-
-  .upload-doc-trigger-btn,
-  .sample-doc-trigger-btn {
-    flex: 1;
-    min-height: 44px;
-    justify-content: center;
-    padding: 8px 12px;
-  }
-
-  .empty-doc-hint {
-    font-size: 0.72rem;
-    opacity: 0.85;
   }
 
   .active-doc-banner {
@@ -3437,42 +3445,132 @@
     width: 100%;
   }
 
-  .workspace-form-row {
+  .clean-text-input,
+  .clean-dropdown-container.size-large .clean-dropdown-trigger,
+  .clean-submit-btn {
+    height: 52px;
+  }
+
+  .clean-submit-btn {
+    width: 100%;
+    padding: 0 8px 0 20px;
+  }
+
+  /* Home Extract Page Mobile ONLY: centered greeting + chat-style composer at bottom */
+  .clean-hero-section.home-extract-hero {
+    min-height: calc(100dvh - 72px);
+    padding: 32px 0 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .home-extract-hero .editorial-hero-title {
+    font-size: clamp(2.15rem, 9vw, 2.75rem);
+    line-height: 1.14;
+    margin: auto auto 14px;
+    padding-top: 20px;
+    text-align: center;
+  }
+
+  .home-extract-hero .hero-desktop-br {
+    display: none;
+  }
+
+  .home-extract-hero .hero-tail-phrase {
+    display: block;
+    white-space: nowrap;
+  }
+
+  .home-extract-hero .inline-arrow-pill {
+    padding: 6px 19px;
+    margin: 0 5px;
+  }
+
+  .home-extract-hero .inline-arrow-pill svg {
+    width: 23px;
+    height: 23px;
+  }
+
+  .home-extract-hero .editorial-hero-subtitle {
+    font-size: 0.94rem;
+    line-height: 1.5;
+    max-width: 310px;
+    margin: 0 auto auto;
+    padding: 0 0 56px;
+    text-align: center;
+  }
+
+  .home-extract-hero .clean-workspace-card {
+    width: 100%;
+    margin: 0 auto 12px;
+    padding: 14px;
+    border-radius: 24px;
+  }
+
+  .home-extract-hero .workspace-doc-bar {
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .home-extract-hero .empty-doc-strip {
+    gap: 6px;
+  }
+
+  .home-extract-hero .empty-doc-left {
+    gap: 8px;
+  }
+
+  .home-extract-hero .upload-doc-trigger-btn,
+  .home-extract-hero .sample-doc-trigger-btn {
+    flex: 1;
+    min-height: 44px;
+    justify-content: center;
+    padding: 8px 12px;
+  }
+
+  .home-extract-hero .empty-doc-hint {
+    font-size: 0.72rem;
+    opacity: 0.85;
+  }
+
+  .home-extract-hero .workspace-form-row {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 10px 8px;
     align-items: center;
   }
 
-  .clean-input-box {
+  .home-extract-hero .clean-input-box {
     grid-column: 1 / -1;
   }
 
-  .clean-text-input {
+  .home-extract-hero .clean-text-input {
     height: 54px;
     border-radius: 16px;
     font-size: 0.94rem;
     padding: 0 42px 0 14px;
   }
 
-  .clean-clear-btn {
+  .home-extract-hero .clean-clear-btn {
     width: 32px;
     height: 32px;
     right: 8px;
   }
 
-  .clean-dropdown-container.size-large {
+  .home-extract-hero .clean-dropdown-container.size-large {
     width: 100%;
     min-width: 0;
   }
 
-  .clean-dropdown-container.size-large .clean-dropdown-trigger {
+  .home-extract-hero .clean-dropdown-container.size-large .clean-dropdown-trigger {
     height: 44px;
     border-radius: 999px;
     padding: 0 12px 0 14px;
     font-size: 0.82rem;
   }
 
-  .clean-submit-btn {
+  .home-extract-hero .clean-submit-btn {
     width: auto;
     height: 44px;
     border-radius: 999px;
@@ -3482,7 +3580,7 @@
     white-space: nowrap;
   }
 
-  .clean-submit-btn .submit-arrow-circle {
+  .home-extract-hero .clean-submit-btn .submit-arrow-circle {
     width: 34px;
     height: 34px;
   }
