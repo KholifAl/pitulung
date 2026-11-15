@@ -14,12 +14,19 @@ import {
 import {
   compressPdfFiles,
   estimatePdfCompression,
+  findCompressionPresetForTarget,
   formatFileSize,
   inspectPdfFile,
   triggerBrowserDownload,
   truncateFileName,
 } from '../utils/pdfTools'
 import { useLanguage } from '../i18n/LanguageContext'
+
+const QUICK_COMPRESS_TARGETS = [
+  { id: '500kb', label: '500 KB', bytes: 500 * 1024 },
+  { id: '1mb', label: '1 MB', bytes: 1024 * 1024 },
+  { id: '2mb', label: '2 MB', bytes: 2 * 1024 * 1024 },
+]
 
 export default function CompressPdfPage() {
   const { lang } = useLanguage()
@@ -28,6 +35,8 @@ export default function CompressPdfPage() {
   const [sliderValue, setSliderValue] = useState(50) // 0: Kualitas Tinggi, 50: Seimbang (Default), 100: Kualitas Rendah
   const [stripMetadata, setStripMetadata] = useState(true)
   const [grayscaleImages, setGrayscaleImages] = useState(false)
+  const [activeQuickTarget, setActiveQuickTarget] = useState(null)
+  const [quickTargetNote, setQuickTargetNote] = useState('')
 
   const [isDragging, setIsDragging] = useState(false)
   const [isInspecting, setIsInspecting] = useState(false)
@@ -69,6 +78,8 @@ export default function CompressPdfPage() {
     if (newItems.length > 0) {
       setPdfItems((prev) => [...prev, ...newItems])
       setCompressResult(null)
+      setActiveQuickTarget(null)
+      setQuickTargetNote('')
     }
 
     if (errors.length > 0) {
@@ -82,14 +93,58 @@ export default function CompressPdfPage() {
   const handleRemoveItem = (id) => {
     setPdfItems((prev) => prev.filter((item) => item.id !== id))
     setCompressResult(null)
+    setActiveQuickTarget(null)
+    setQuickTargetNote('')
     setErrorMsg('')
   }
 
   const handleClearAll = () => {
     setPdfItems([])
     setSliderValue(50)
+    setStripMetadata(true)
+    setGrayscaleImages(false)
+    setActiveQuickTarget(null)
+    setQuickTargetNote('')
     setCompressResult(null)
     setErrorMsg('')
+  }
+
+  const handleApplyQuickTarget = (target) => {
+    if (pdfItems.length === 0 || isBusy) return
+    const match = findCompressionPresetForTarget(pdfItems, target.bytes)
+    setSliderValue(match.sliderValue)
+    setStripMetadata(match.stripMetadata)
+    setGrayscaleImages(match.grayscaleImages)
+    setActiveQuickTarget(target.id)
+    setCompressResult(null)
+    setErrorMsg('')
+
+    if (match.alreadyUnderTarget) {
+      setQuickTargetNote(
+        isEn
+          ? `Original size is already under ${target.label}. Light optimization applied to keep quality high.`
+          : `Ukuran asli sudah di bawah ${target.label}. Setelan ringan diterapkan agar kualitas tetap terjaga.`
+      )
+    } else if (!match.reachable) {
+      setQuickTargetNote(
+        isEn
+          ? `Max estimated compression (~${formatFileSize(match.estimatedFinalSize)}) is still above ${target.label}. Maximum compression applied.`
+          : `Estimasi maksimal (~${formatFileSize(match.estimatedFinalSize)}) masih di atas ${target.label}. Kombinasi kompresi terkuat diterapkan.`
+      )
+    } else {
+      const parts = [
+        isEn ? `Level ${match.sliderValue}%` : `Tingkat ${match.sliderValue}%`,
+        isEn ? 'Remove Unused Objects' : 'Hapus Objek Tak Terpakai',
+      ]
+      if (match.grayscaleImages) {
+        parts.push(isEn ? 'Grayscale' : 'Hitam-Putih')
+      }
+      setQuickTargetNote(
+        isEn
+          ? `Target ${target.label}: ${parts.join(' + ')}.`
+          : `Target ${target.label}: ${parts.join(' + ')}.`
+      )
+    }
   }
 
   const handleCompressNow = async () => {
@@ -328,6 +383,52 @@ export default function CompressPdfPage() {
             </div>
 
             <div className="pdf-compress-settings-panel">
+              <div className="pdf-quick-compress-section">
+                <div className="pdf-slider-head">
+                  <span className="pdf-mode-label">
+                    {isEn ? 'Quick Compress (Target Size):' : 'Kompres Cepat (Target Ukuran):'}
+                  </span>
+                </div>
+                <div
+                  className="pdf-quick-compress-grid"
+                  role="group"
+                  aria-label={isEn ? 'Quick compression target sizes' : 'Target ukuran kompresi cepat'}
+                >
+                  {QUICK_COMPRESS_TARGETS.map((target) => {
+                    const isSelected = activeQuickTarget === target.id
+                    const isAlreadySmall = totalSize > 0 && totalSize <= target.bytes
+                    return (
+                      <button
+                        key={target.id}
+                        type="button"
+                        aria-pressed={isSelected}
+                        className={`pdf-quick-target-btn ${isSelected ? 'is-active' : ''}`}
+                        onClick={() => handleApplyQuickTarget(target)}
+                        disabled={isBusy}
+                      >
+                        <strong className="pqtb-title">
+                          {isEn ? `Max ${target.label}` : `Maks ${target.label}`}
+                        </strong>
+                        <span className="pqtb-meta">
+                          {isAlreadySmall
+                            ? isEn
+                              ? 'Already under target'
+                              : 'Sudah di bawah target'
+                            : isEn
+                              ? 'Auto-tune settings'
+                              : 'Setelan otomatis'}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+                {quickTargetNote && (
+                  <p className="pdf-quick-target-note" role="status">
+                    {quickTargetNote}
+                  </p>
+                )}
+              </div>
+
               <div className="pdf-slider-section">
                 <div className="pdf-slider-head">
                   <label className="pdf-mode-label" htmlFor="pdf-compress-slider">
@@ -345,6 +446,8 @@ export default function CompressPdfPage() {
                     value={sliderValue}
                     onChange={(e) => {
                       setSliderValue(Number(e.target.value))
+                      setActiveQuickTarget(null)
+                      setQuickTargetNote('')
                       setCompressResult(null)
                     }}
                     disabled={isBusy}
@@ -363,6 +466,8 @@ export default function CompressPdfPage() {
                       className={`pdf-slider-tick-btn ${sliderValue < 34 ? 'is-active' : ''}`}
                       onClick={() => {
                         setSliderValue(0)
+                        setActiveQuickTarget(null)
+                        setQuickTargetNote('')
                         setCompressResult(null)
                       }}
                       disabled={isBusy}
@@ -375,6 +480,8 @@ export default function CompressPdfPage() {
                         }`}
                       onClick={() => {
                         setSliderValue(50)
+                        setActiveQuickTarget(null)
+                        setQuickTargetNote('')
                         setCompressResult(null)
                       }}
                       disabled={isBusy}
@@ -386,6 +493,8 @@ export default function CompressPdfPage() {
                       className={`pdf-slider-tick-btn ${sliderValue > 66 ? 'is-active' : ''}`}
                       onClick={() => {
                         setSliderValue(100)
+                        setActiveQuickTarget(null)
+                        setQuickTargetNote('')
                         setCompressResult(null)
                       }}
                       disabled={isBusy}
@@ -412,6 +521,8 @@ export default function CompressPdfPage() {
                     className={`pdf-compress-toggle-chip ${stripMetadata ? 'is-checked' : ''}`}
                     onClick={() => {
                       setStripMetadata((prev) => !prev)
+                      setActiveQuickTarget(null)
+                      setQuickTargetNote('')
                       setCompressResult(null)
                     }}
                     disabled={isBusy}
@@ -434,6 +545,8 @@ export default function CompressPdfPage() {
                     className={`pdf-compress-toggle-chip ${grayscaleImages ? 'is-checked' : ''}`}
                     onClick={() => {
                       setGrayscaleImages((prev) => !prev)
+                      setActiveQuickTarget(null)
+                      setQuickTargetNote('')
                       setCompressResult(null)
                     }}
                     disabled={isBusy}

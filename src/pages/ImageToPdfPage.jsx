@@ -1,21 +1,26 @@
 import { useState, useRef } from 'react'
 import {
-  IconArrowUpRight,
-  IconArrowUp,
   IconArrowDown,
+  IconArrowLeft,
+  IconArrowRight,
+  IconArrowUp,
+  IconArrowUpRight,
   IconCheck,
   IconClose,
   IconDownload,
   IconImageToPdf,
   IconPlus,
+  IconRotateCw,
   IconShield,
   IconTrash,
   IconUpload,
 } from '../components/Icons'
 import {
+  computeImagePdfPageLayout,
   convertImagesToPdf,
   formatFileSize,
   inspectImageFile,
+  rotateImagePreviewUrl,
   triggerBrowserDownload,
   truncateFileName,
 } from '../utils/pdfTools'
@@ -26,8 +31,10 @@ export default function ImageToPdfPage() {
   const isEn = lang === 'en'
   const [imageItems, setImageItems] = useState([])
   const [pageSize, setPageSize] = useState('a4')
-  const [orientation, setOrientation] = useState('auto')
+  const [orientation, setOrientation] = useState('portrait')
   const [margin, setMargin] = useState('small')
+  const [colorMode, setColorMode] = useState('color')
+  const [previewIndex, setPreviewIndex] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
   const [isInspecting, setIsInspecting] = useState(false)
   const [isConverting, setIsConverting] = useState(false)
@@ -66,6 +73,10 @@ export default function ImageToPdfPage() {
     }
 
     if (newItems.length > 0) {
+      if (imageItems.length === 0) {
+        const firstImg = newItems[0]
+        setOrientation(firstImg.width > firstImg.height ? 'landscape' : 'portrait')
+      }
       setImageItems((prev) => [...prev, ...newItems])
       setConvertedResult(null)
     }
@@ -102,6 +113,31 @@ export default function ImageToPdfPage() {
     setErrorMsg('')
   }
 
+  const handleRotateItem = async (id) => {
+    const target = imageItems.find((item) => item.id === id)
+    if (!target) return
+    const nextRotation = ((target.rotation || 0) + 90) % 360
+    const baseUrl = target.basePreviewUrl || target.previewUrl
+    try {
+      const nextPreviewUrl = await rotateImagePreviewUrl(baseUrl, nextRotation)
+      setImageItems((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                rotation: nextRotation,
+                basePreviewUrl: baseUrl,
+                previewUrl: nextPreviewUrl,
+              }
+            : item
+        )
+      )
+      setConvertedResult(null)
+    } catch {
+      // Ignore transient preview rotation error
+    }
+  }
+
   const handleConvertNow = async () => {
     if (imageItems.length < 1) {
       setErrorMsg(
@@ -123,7 +159,7 @@ export default function ImageToPdfPage() {
     try {
       const res = await convertImagesToPdf(
         imageItems,
-        { pageSize, orientation, margin },
+        { pageSize, orientation, margin, colorMode },
         (step) => setProcessStep(step)
       )
       triggerBrowserDownload(res.pdfBytes, res.fileName, 'application/pdf')
@@ -151,6 +187,56 @@ export default function ImageToPdfPage() {
 
   const totalSize = imageItems.reduce((acc, item) => acc + (item.size || 0), 0)
   const isBusy = isInspecting || isConverting
+
+  const pageSizeLabel =
+    pageSize === 'fit'
+      ? isEn
+        ? 'Fit Image'
+        : 'Sesuai Gambar'
+      : pageSize === 'f4'
+        ? 'Folio / F4'
+        : 'A4'
+
+  const orientationLabel =
+    orientation === 'landscape'
+      ? isEn
+        ? 'Landscape'
+        : 'Lanskap'
+      : isEn
+        ? 'Portrait'
+        : 'Potret'
+
+  const colorModeLabel =
+    colorMode === 'grayscale'
+      ? isEn
+        ? 'Black & White'
+        : 'Hitam Putih'
+      : isEn
+        ? 'Color'
+        : 'Berwarna'
+
+  const marginLabel =
+    margin === 'none'
+      ? isEn
+        ? 'No Margin'
+        : 'Tanpa Tepi'
+      : margin === 'normal'
+        ? isEn
+          ? 'Normal Margin'
+          : 'Margin Normal'
+        : isEn
+          ? 'Small Margin'
+          : 'Margin Kecil'
+
+  const previewSummaryText = [
+    pageSizeLabel,
+    pageSize !== 'fit' ? orientationLabel : null,
+    colorModeLabel,
+    marginLabel,
+    `${imageItems.length} ${isEn ? (imageItems.length === 1 ? 'page' : 'pages') : 'halaman'}`,
+  ]
+    .filter(Boolean)
+    .join(' • ')
 
   return (
     <section className="clean-hero-section">
@@ -358,9 +444,9 @@ export default function ImageToPdfPage() {
                   aria-label={isEn ? 'Page Size' : 'Ukuran Halaman'}
                 >
                   {[
-                    { id: 'a4', label: 'A4' },
                     { id: 'fit', label: isEn ? 'Fit Image' : 'Sesuai Gambar' },
-                    { id: 'letter', label: 'Letter' },
+                    { id: 'a4', label: 'A4' },
+                    { id: 'f4', label: 'Folio / F4' },
                   ].map((opt) => (
                     <button
                       key={opt.id}
@@ -380,39 +466,36 @@ export default function ImageToPdfPage() {
                 </div>
               </div>
 
-              {pageSize !== 'fit' && (
-                <div className="img-pdf-setting-group">
-                  <span className="img-pdf-setting-label">
-                    {isEn ? 'Orientation' : 'Orientasi'}
-                  </span>
-                  <div
-                    className="img-pdf-pill-group"
-                    role="radiogroup"
-                    aria-label={isEn ? 'Page Orientation' : 'Orientasi Halaman'}
-                  >
-                    {[
-                      { id: 'auto', label: isEn ? 'Auto' : 'Otomatis' },
-                      { id: 'portrait', label: isEn ? 'Portrait' : 'Potret' },
-                      { id: 'landscape', label: isEn ? 'Landscape' : 'Lanskap' },
-                    ].map((opt) => (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        role="radio"
-                        aria-checked={orientation === opt.id}
-                        className={`img-pdf-pill-btn ${orientation === opt.id ? 'is-active' : ''}`}
-                        onClick={() => {
-                          setOrientation(opt.id)
-                          setConvertedResult(null)
-                        }}
-                        disabled={isBusy}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
+              <div className="img-pdf-setting-group">
+                <span className="img-pdf-setting-label">
+                  {isEn ? 'Color' : 'Warna'}
+                </span>
+                <div
+                  className="img-pdf-pill-group"
+                  role="radiogroup"
+                  aria-label={isEn ? 'Color Mode' : 'Mode Warna'}
+                >
+                  {[
+                    { id: 'color', label: isEn ? 'Color' : 'Berwarna' },
+                    { id: 'grayscale', label: isEn ? 'Black & White' : 'Hitam Putih' },
+                  ].map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={colorMode === opt.id}
+                      className={`img-pdf-pill-btn ${colorMode === opt.id ? 'is-active' : ''}`}
+                      onClick={() => {
+                        setColorMode(opt.id)
+                        setConvertedResult(null)
+                      }}
+                      disabled={isBusy}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
                 </div>
-              )}
+              </div>
 
               <div className="img-pdf-setting-group">
                 <span className="img-pdf-setting-label">
@@ -445,6 +528,191 @@ export default function ImageToPdfPage() {
                   ))}
                 </div>
               </div>
+
+              {pageSize !== 'fit' && (
+                <div className="img-pdf-setting-group">
+                  <span className="img-pdf-setting-label">
+                    {isEn ? 'Orientation' : 'Orientasi'}
+                  </span>
+                  <div
+                    className="img-pdf-pill-group"
+                    role="radiogroup"
+                    aria-label={isEn ? 'Page Orientation' : 'Orientasi Halaman'}
+                  >
+                    {[
+                      { id: 'portrait', label: isEn ? 'Portrait' : 'Potret' },
+                      { id: 'landscape', label: isEn ? 'Landscape' : 'Lanskap' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={orientation === opt.id}
+                        className={`img-pdf-pill-btn ${orientation === opt.id ? 'is-active' : ''}`}
+                        onClick={() => {
+                          setOrientation(opt.id)
+                          setConvertedResult(null)
+                        }}
+                        disabled={isBusy}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div
+              className="img-pdf-preview-section"
+              aria-label={isEn ? 'PDF page layout preview' : 'Pratinjau tata letak halaman PDF'}
+            >
+              <div className="img-pdf-preview-head">
+                <div className="img-pdf-preview-meta">
+                  <span className="img-pdf-preview-title">
+                    {isEn ? 'PDF Page Preview' : 'Pratinjau Halaman PDF'}
+                  </span>
+                  <span className="img-pdf-preview-subtitle">{previewSummaryText}</span>
+                </div>
+              </div>
+
+              {(() => {
+                const safePreviewIndex = Math.min(previewIndex, imageItems.length - 1)
+                const activeItem = imageItems[safePreviewIndex]
+                if (!activeItem) return null
+
+                const activeRotation = ((activeItem.rotation || 0) % 360 + 360) % 360
+                const isQuarterTurn = activeRotation === 90 || activeRotation === 270
+                const effectiveW = isQuarterTurn ? activeItem.height : activeItem.width
+                const effectiveH = isQuarterTurn ? activeItem.width : activeItem.height
+
+                const layout = computeImagePdfPageLayout(effectiveW, effectiveH, {
+                  pageSize,
+                  orientation,
+                  margin,
+                })
+                const maxStage = 300
+                const sheetScale = maxStage / Math.max(layout.pageW, layout.pageH)
+                const sheetW = Math.max(84, Math.round(layout.pageW * sheetScale))
+                const sheetH = Math.max(84, Math.round(layout.pageH * sheetScale))
+                const imgWidthPct = (layout.drawW / layout.pageW) * 100
+                const imgHeightPct = (layout.drawH / layout.pageH) * 100
+                const availWidthPct = (layout.availW / layout.pageW) * 100
+                const availHeightPct = (layout.availH / layout.pageH) * 100
+
+                return (
+                  <div className="img-pdf-preview-single">
+                    <div className="img-pdf-preview-stage">
+                      <button
+                        type="button"
+                        className="img-pdf-rotate-btn"
+                        onClick={() => handleRotateItem(activeItem.id)}
+                        disabled={isBusy}
+                        title={
+                          isEn
+                            ? 'Rotate image 90° clockwise'
+                            : 'Putar gambar 90° searah jarum jam'
+                        }
+                        aria-label={
+                          isEn
+                            ? `Rotate page ${safePreviewIndex + 1} by 90 degrees`
+                            : `Putar halaman ${safePreviewIndex + 1} sebesar 90 derajat`
+                        }
+                      >
+                        <IconRotateCw size={14} />
+                        <span>
+                          {isEn ? 'Rotate 90°' : 'Putar 90°'}
+                          {activeRotation > 0 ? ` (${activeRotation}°)` : ''}
+                        </span>
+                      </button>
+
+                      <div
+                        className={`img-pdf-preview-sheet ${
+                          layout.isLandscape ? 'is-landscape' : 'is-portrait'
+                        }`}
+                        style={{
+                          aspectRatio: `${layout.pageW} / ${layout.pageH}`,
+                          '--sheet-w': `${sheetW}px`,
+                          '--sheet-h': `${sheetH}px`,
+                        }}
+                      >
+                        {layout.marginPt > 0 && (
+                          <span
+                            className="img-pdf-preview-margin-guide"
+                            style={{
+                              width: `${availWidthPct}%`,
+                              height: `${availHeightPct}%`,
+                            }}
+                            aria-hidden="true"
+                          />
+                        )}
+                        <img
+                          src={activeItem.previewUrl}
+                          alt={
+                            isEn
+                              ? `Preview of page ${safePreviewIndex + 1}: ${activeItem.name}`
+                              : `Pratinjau halaman ${safePreviewIndex + 1}: ${activeItem.name}`
+                          }
+                          className={`img-pdf-preview-img ${
+                            colorMode === 'grayscale' ? 'is-grayscale' : ''
+                          }`}
+                          style={{
+                            width: `${imgWidthPct}%`,
+                            height: `${imgHeightPct}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="img-pdf-preview-pager">
+                      <button
+                        type="button"
+                        className="img-pdf-pager-btn"
+                        onClick={() => setPreviewIndex(Math.max(0, safePreviewIndex - 1))}
+                        disabled={safePreviewIndex <= 0}
+                        title={isEn ? 'Previous page' : 'Halaman sebelumnya'}
+                        aria-label={isEn ? 'Previous page' : 'Halaman sebelumnya'}
+                      >
+                        <IconArrowLeft size={16} />
+                      </button>
+
+                      <div className="img-pdf-pager-status">
+                        <span className="img-pdf-preview-page-num">
+                          {isEn
+                            ? `Page ${safePreviewIndex + 1} of ${imageItems.length}`
+                            : `Halaman ${safePreviewIndex + 1} dari ${imageItems.length}`}
+                        </span>
+                        <span className="img-pdf-preview-page-info" title={activeItem.name}>
+                          {layout.isLandscape
+                            ? isEn
+                              ? 'Landscape'
+                              : 'Lanskap'
+                            : isEn
+                              ? 'Portrait'
+                              : 'Potret'}{' '}
+                          • {Math.round(layout.pageW)}×{Math.round(layout.pageH)} pt •{' '}
+                          {truncateFileName(activeItem.name, 24)}
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="img-pdf-pager-btn"
+                        onClick={() =>
+                          setPreviewIndex(
+                            Math.min(imageItems.length - 1, safePreviewIndex + 1)
+                          )
+                        }
+                        disabled={safePreviewIndex >= imageItems.length - 1}
+                        title={isEn ? 'Next page' : 'Halaman berikutnya'}
+                        aria-label={isEn ? 'Next page' : 'Halaman berikutnya'}
+                      >
+                        <IconArrowRight size={16} />
+                      </button>
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
 
             <div className="pdf-action-bar">

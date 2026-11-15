@@ -339,6 +339,29 @@ export function IconCompressPdf({ size = 15 }) {
   )
 }
 
+export function IconCompressImage({ size = 15 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="16" rx="2.5" stroke="currentColor" strokeWidth="1.9" />
+      <circle cx="8.5" cy="9" r="1.4" fill="currentColor" />
+      <path
+        d="M4.5 17L9.5 12.5L13 15.5L15.5 13.5L19.5 17"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M15.5 7.5L17.5 9.5M17.5 9.5L15.5 11.5M17.5 9.5H13.5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 export function IconSignPdf({ size = 15 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -520,6 +543,27 @@ export function IconEyeOff({ size = 14 }) {
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
         d="M3 3L21 21M10.6 10.6C10.2 11 10 11.5 10 12C10 13.1 10.9 14 12 14C12.5 14 13 13.8 13.4 13.4M9.9 5.2C10.6 5.1 11.3 5 12 5C16.5 5 20.2 7.5 22 12C21.3 13.8 20.2 15.3 18.8 16.5M6.2 6.2C4.4 7.5 2.9 9.5 2 12C3.8 16.5 7.5 19 12 19C14.1 19 16 18.4 17.6 17.4"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+export function IconRotateCw({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M21 12A9 9 0 1 1 18.36 5.64L21 8"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M21 3V8H16"
         stroke="currentColor"
         strokeWidth="1.9"
         strokeLinecap="round"

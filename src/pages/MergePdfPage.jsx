@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   IconArrowUpRight,
   IconCheck,
@@ -33,9 +33,20 @@ export default function MergePdfPage() {
   const [processStep, setProcessStep] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
   const [mergedResult, setMergedResult] = useState(null)
+  const [previewTick, setPreviewTick] = useState(0)
 
   const fileInputRef = useRef(null)
   const resultRef = useRef(null)
+
+  const hasLoadingPreviews = pdfItems.some((item) => item.isLoadingPreview)
+
+  useEffect(() => {
+    if (!hasLoadingPreviews) return undefined
+    const timer = setInterval(() => {
+      setPreviewTick((t) => t + 1)
+    }, 120)
+    return () => clearInterval(timer)
+  }, [hasLoadingPreviews])
 
   const handleAddFiles = async (fileList) => {
     const files = Array.from(fileList || [])
@@ -44,38 +55,34 @@ export default function MergePdfPage() {
     setErrorMsg('')
     setIsInspecting(true)
     setProcessStep(
-      isEn
-        ? 'Reading PDF files & rendering first-page previews...'
-        : 'Membaca berkas PDF & menyiapkan pratinjau halaman pertama...'
+      isEn ? 'Reading PDF files...' : 'Membaca berkas PDF...'
     )
 
-    const newItems = []
     const errors = []
 
-    for (const file of files) {
-      try {
-        const info = await inspectPdfFile(file)
-        let previewUrl = ''
+    const results = await Promise.all(
+      files.map(async (file) => {
         try {
-          const preview = await renderPdfPagePreviewToDataUrl(file, 1, {
-            maxDimension: 360,
-            maxScale: 1.2,
-            skipSinglePagePdf: true,
-          })
-          previewUrl = preview?.dataUrl || ''
-        } catch {
-          previewUrl = ''
+          const info = await inspectPdfFile(file, { quick: true })
+          return {
+            ...info,
+            previewUrl: '',
+            isLoadingPreview: true,
+          }
+        } catch (err) {
+          errors.push(
+            err.message ||
+              (isEn ? `Failed to read "${file.name}".` : `Gagal membaca "${file.name}".`)
+          )
+          return null
         }
-        newItems.push({ ...info, previewUrl })
-      } catch (err) {
-        errors.push(
-          err.message ||
-            (isEn ? `Failed to read "${file.name}".` : `Gagal membaca "${file.name}".`)
-        )
-      }
-    }
+      })
+    )
+
+    const newItems = results.filter(Boolean)
 
     if (newItems.length > 0) {
+      setPreviewTick(1)
       setPdfItems((prev) => [...prev, ...newItems])
       setMergedResult(null)
     }
@@ -86,6 +93,40 @@ export default function MergePdfPage() {
 
     setIsInspecting(false)
     setProcessStep('')
+
+    // Render thumbnail halaman pertama secara berurutan agar tidak saling mengantre di worker
+    if (newItems.length > 0) {
+      ;(async () => {
+        for (const item of newItems) {
+          setPreviewTick(1)
+          try {
+            const preview = await renderPdfPagePreviewToDataUrl(item.file, 1, {
+              maxDimension: 168,
+              maxScale: 0.75,
+              mimeType: 'image/jpeg',
+              quality: 0.65,
+              disableFontFace: true,
+              skipSinglePagePdf: true,
+            })
+            const url = preview?.dataUrl || ''
+            setPdfItems((prev) =>
+              prev.map((p) =>
+                p.id === item.id
+                  ? { ...p, previewUrl: url, isLoadingPreview: false }
+                  : p
+              )
+            )
+          } catch {
+            setPdfItems((prev) =>
+              prev.map((p) =>
+                p.id === item.id ? { ...p, isLoadingPreview: false } : p
+              )
+            )
+          }
+          await new Promise((resolve) => setTimeout(resolve, 0))
+        }
+      })()
+    }
   }
 
   const reorderItems = (fromIndex, toIndex) => {
@@ -345,7 +386,7 @@ export default function MergePdfPage() {
                   <span>
                     {isEn
                       ? `Merge Order (${pdfItems.length} files • ${totalPages} Pages • ${formatFileSize(totalSize)})`
-                      : `Urutan Penggabungan (${formatFileSize(totalSize)})`}
+                      : `Ukuran Total: (${formatFileSize(totalSize)})`}
                   </span>
                   <span className="pdf-file-list-hint">
                     {isEn
@@ -442,6 +483,29 @@ export default function MergePdfPage() {
                             className="pdf-merge-preview-img"
                             draggable={false}
                           />
+                        ) : item.isLoadingPreview ? (
+                          (() => {
+                            const pct = Math.min(
+                              94,
+                              Math.max(
+                                12,
+                                Math.round(14 + 80 * (1 - Math.exp(-Math.max(1, previewTick) * 0.18)))
+                              )
+                            )
+                            return (
+                              <div
+                                className="pdf-split-page-loader"
+                                role="status"
+                                aria-label={
+                                  isEn
+                                    ? `Loading preview ${pct}%`
+                                    : `Memuat pratinjau ${pct}%`
+                                }
+                              >
+                                <span className="pdf-page-progress-pct">{pct}%</span>
+                              </div>
+                            )
+                          })()
                         ) : (
                           <div className="pdf-merge-preview-fallback">
                             <IconFileText size={28} />

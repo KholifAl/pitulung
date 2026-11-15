@@ -74,7 +74,7 @@ export function triggerBrowserDownload(data, fileName, mimeType = 'application/p
 /**
  * Membaca metadata & jumlah halaman dari berkas PDF yang diunggah
  */
-export async function inspectPdfFile(file) {
+export async function inspectPdfFile(file, options = {}) {
   if (!file) {
     throw new Error('Berkas tidak ditemukan.')
   }
@@ -82,6 +82,47 @@ export async function inspectPdfFile(file) {
     file.type === 'application/pdf' || /\.pdf$/i.test(String(file.name || ''))
   if (!isPdf) {
     throw new Error(`Berkas "${file.name}" bukan format PDF. Harap unggah file .pdf.`)
+  }
+
+  if (options.quick) {
+    const objectUrl = URL.createObjectURL(file)
+    let pdfjsDoc = null
+    try {
+      const loadingTask = pdfjsLib.getDocument({
+        url: objectUrl,
+        disableAutoFetch: true,
+        useSystemFonts: true,
+      })
+      pdfjsDoc = await loadingTask.promise
+      const pageCount = pdfjsDoc.numPages
+      if (pageCount < 1) {
+        throw new Error(`Berkas "${file.name}" tidak memiliki halaman yang valid.`)
+      }
+      return {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        file,
+        name: file.name,
+        size: file.size,
+        pageCount,
+      }
+    } catch (err) {
+      if (err?.name === 'PasswordException' || /encrypted|password/i.test(err?.message || '')) {
+        throw new Error(
+          `Berkas "${file.name}" dikunci password (terenkripsi). Buka kunci PDF terlebih dahulu sebelum diproses.`,
+          { cause: err }
+        )
+      }
+      // Fall back to pdf-lib inspection if PDF.js cannot open the file
+    } finally {
+      if (pdfjsDoc) {
+        try {
+          await pdfjsDoc.destroy()
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+      URL.revokeObjectURL(objectUrl)
+    }
   }
 
   let arrayBuffer
@@ -96,6 +137,16 @@ export async function inspectPdfFile(file) {
     const pageCount = pdfDoc.getPageCount()
     if (pageCount < 1) {
       throw new Error(`Berkas "${file.name}" tidak memiliki halaman yang valid.`)
+    }
+
+    if (options.quick) {
+      return {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        file,
+        name: file.name,
+        size: file.size,
+        pageCount,
+      }
     }
 
     const analysis = analyzePdfStructure(pdfDoc)
@@ -349,11 +400,47 @@ export function parsePageRanges(rangeStr = '', maxPages = 1) {
 }
 
 /**
+ * Mengubah daftar nomor halaman (1-based) menjadi string rentang ringkas (misal: "1-3, 5, 8-10")
+ */
+export function formatPageNumbersToRanges(pageNumbers = []) {
+  const uniqueSorted = Array.from(
+    new Set(
+      (Array.isArray(pageNumbers) ? pageNumbers : [])
+        .map((n) => parseInt(n, 10))
+        .filter((n) => Number.isFinite(n) && n >= 1)
+    )
+  ).sort((a, b) => a - b)
+
+  if (uniqueSorted.length === 0) return ''
+
+  const ranges = []
+  let start = uniqueSorted[0]
+  let prev = uniqueSorted[0]
+
+  for (let i = 1; i < uniqueSorted.length; i += 1) {
+    const curr = uniqueSorted[i]
+    if (curr === prev + 1) {
+      prev = curr
+    } else {
+      ranges.push(start === prev ? `${start}` : `${start}-${prev}`)
+      start = curr
+      prev = curr
+    }
+  }
+  ranges.push(start === prev ? `${start}` : `${start}-${prev}`)
+
+  return ranges.join(', ')
+}
+
+/**
  * Memisahkan berkas PDF berdasarkan mode:
  * - 'range': Ambil rentang halaman kustom (misal 1-3, 5, 8-10)
  * - 'all': Pisah setiap halaman menjadi berkas PDF terpisah (+ bundel .zip jika > 1 file)
  */
-export async function splitPdfFile({ file, mode = 'range', rangeInput = '' }, onProgress) {
+export async function splitPdfFile(
+  { file, mode = 'range', rangeInput = '', pagesPerBundle = 1 },
+  onProgress
+) {
   if (!file) {
     throw new Error('Pilih atau unggah 1 berkas PDF terlebih dahulu.')
   }
@@ -450,24 +537,44 @@ export async function splitPdfFile({ file, mode = 'range', rangeInput = '' }, on
     }
   }
 
-  // Mode 'all': Pisah setiap halaman menjadi file PDF terpisah
+  // Mode 'all': Pisah seluruh halaman per N halaman (default 1 halaman per file)
+  const safeBundleSize = Math.max(1, Math.min(totalPages, parseInt(pagesPerBundle, 10) || 1))
+  const padDigits = totalPages >= 10 ? 2 : 1
   const files = []
-  for (let p = 1; p <= totalPages; p += 1) {
-    if (onProgress) {
-      onProgress(`Memisahkan halaman ${p} dari ${totalPages}...`)
+
+  for (let startPage = 1; startPage <= totalPages; startPage += safeBundleSize) {
+    const endPage = Math.min(totalPages, startPage + safeBundleSize - 1)
+    const indices = []
+    for (let p = startPage; p <= endPage; p += 1) {
+      indices.push(p - 1)
     }
-    const singlePdf = await PDFDocument.create()
-    const [copiedPage] = await singlePdf.copyPages(sourcePdf, [p - 1])
-    singlePdf.addPage(copiedPage)
-    const singleBytes = await singlePdf.save()
-    const paddedNum = String(p).padStart(totalPages >= 10 ? 2 : 1, '0')
+
+    if (onProgress) {
+      onProgress(
+        startPage === endPage
+          ? `Memisahkan halaman ${startPage} dari ${totalPages}...`
+          : `Memisahkan bundel halaman ${startPage}-${endPage} dari ${totalPages}...`
+      )
+    }
+
+    const bundlePdf = await PDFDocument.create()
+    const copiedPages = await bundlePdf.copyPages(sourcePdf, indices)
+    copiedPages.forEach((page) => bundlePdf.addPage(page))
+    const bundleBytes = await bundlePdf.save()
+
+    const paddedStart = String(startPage).padStart(padDigits, '0')
+    const paddedEnd = String(endPage).padStart(padDigits, '0')
+    const isSingle = startPage === endPage
+
     files.push({
-      name: `${baseName}-halaman-${paddedNum}.pdf`,
-      label: `Halaman ${p}`,
-      pageNumber: p,
-      pageCount: 1,
-      size: singleBytes.byteLength,
-      bytes: singleBytes,
+      name: isSingle
+        ? `${baseName}-halaman-${paddedStart}.pdf`
+        : `${baseName}-halaman-${paddedStart}-${paddedEnd}.pdf`,
+      label: isSingle ? `Halaman ${startPage}` : `Hal. ${startPage}-${endPage}`,
+      pageNumber: startPage,
+      pageCount: indices.length,
+      size: bundleBytes.byteLength,
+      bytes: bundleBytes,
     })
   }
 
@@ -482,11 +589,15 @@ export async function splitPdfFile({ file, mode = 'range', rangeInput = '' }, on
       zip.file(item.name, item.bytes)
     })
     zipBlob = await zip.generateAsync({ type: 'blob' })
-    zipFileName = `${baseName}-pisah-${totalPages}-halaman.zip`
+    zipFileName =
+      safeBundleSize === 1
+        ? `${baseName}-pisah-${totalPages}-halaman.zip`
+        : `${baseName}-bundel-per-${safeBundleSize}-hal.zip`
   }
 
   return {
     mode: 'all',
+    pagesPerBundle: safeBundleSize,
     sourceName: file.name,
     totalPages,
     extractedCount: totalPages,
@@ -992,6 +1103,86 @@ export function estimatePdfCompression(items = [], options = {}) {
     totalSavedBytes,
     estimatedFinalSize,
     estimatedSavedPercent,
+  }
+}
+
+export function findCompressionPresetForTarget(items = [], targetBytes) {
+  const totalOriginalSize = items.reduce((acc, item) => acc + (item.size || 0), 0)
+  if (totalOriginalSize <= 0 || !targetBytes || targetBytes <= 0) {
+    return {
+      sliderValue: 50,
+      stripMetadata: true,
+      grayscaleImages: false,
+      reachable: true,
+      alreadyUnderTarget: false,
+      estimatedFinalSize: 0,
+    }
+  }
+
+  if (totalOriginalSize <= targetBytes) {
+    const lightEst = estimatePdfCompression(items, {
+      sliderValue: 15,
+      stripMetadata: true,
+      grayscaleImages: false,
+    })
+    return {
+      sliderValue: 15,
+      stripMetadata: true,
+      grayscaleImages: false,
+      reachable: true,
+      alreadyUnderTarget: true,
+      estimatedFinalSize: lightEst.estimatedFinalSize,
+    }
+  }
+
+  for (let sv = 0; sv <= 100; sv += 1) {
+    const est = estimatePdfCompression(items, {
+      sliderValue: sv,
+      stripMetadata: true,
+      grayscaleImages: false,
+    })
+    if (est.estimatedFinalSize <= targetBytes) {
+      return {
+        sliderValue: sv,
+        stripMetadata: true,
+        grayscaleImages: false,
+        reachable: true,
+        alreadyUnderTarget: false,
+        estimatedFinalSize: est.estimatedFinalSize,
+      }
+    }
+  }
+
+  for (let sv = 0; sv <= 100; sv += 1) {
+    const est = estimatePdfCompression(items, {
+      sliderValue: sv,
+      stripMetadata: true,
+      grayscaleImages: true,
+    })
+    if (est.estimatedFinalSize <= targetBytes) {
+      return {
+        sliderValue: sv,
+        stripMetadata: true,
+        grayscaleImages: true,
+        reachable: true,
+        alreadyUnderTarget: false,
+        estimatedFinalSize: est.estimatedFinalSize,
+      }
+    }
+  }
+
+  const maxEst = estimatePdfCompression(items, {
+    sliderValue: 100,
+    stripMetadata: true,
+    grayscaleImages: true,
+  })
+  return {
+    sliderValue: 100,
+    stripMetadata: true,
+    grayscaleImages: true,
+    reachable: false,
+    alreadyUnderTarget: false,
+    estimatedFinalSize: maxEst.estimatedFinalSize,
   }
 }
 
@@ -2480,16 +2671,32 @@ function decodeContentStreamsToText(contentsObj, context) {
   return combined
 }
 
-async function renderPdfPageWithPdfJs(arrayBuffer, pageNumber, options = {}) {
+async function renderPdfPageWithPdfJs(fileOrBuffer, pageNumber, options = {}) {
   let pdfjsDoc = options.pdfjsDoc || null
   let shouldDestroy = false
+  let objectUrl = null
 
   if (!pdfjsDoc) {
-    const loadingTask = pdfjsLib.getDocument({
-      data: new Uint8Array(arrayBuffer.slice(0)),
+    const docInit = {
       useSystemFonts: true,
-    })
-    pdfjsDoc = await loadingTask.promise
+      isEvalSupported: false,
+      disableFontFace: Boolean(options.disableFontFace),
+    }
+    if (fileOrBuffer instanceof Blob) {
+      objectUrl = URL.createObjectURL(fileOrBuffer)
+      const loadingTask = pdfjsLib.getDocument({
+        ...docInit,
+        url: objectUrl,
+        disableAutoFetch: true,
+      })
+      pdfjsDoc = await loadingTask.promise
+    } else {
+      const loadingTask = pdfjsLib.getDocument({
+        ...docInit,
+        data: new Uint8Array(fileOrBuffer.slice(0)),
+      })
+      pdfjsDoc = await loadingTask.promise
+    }
     shouldDestroy = true
   }
 
@@ -2509,12 +2716,23 @@ async function renderPdfPageWithPdfJs(arrayBuffer, pageNumber, options = {}) {
     const canvas = document.createElement('canvas')
     canvas.width = Math.max(1, Math.round(viewport.width))
     canvas.height = Math.max(1, Math.round(viewport.height))
-    const ctx = canvas.getContext('2d')
+    const ctx = canvas.getContext('2d', { alpha: false })
 
     ctx.fillStyle = '#ffffff'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-    await page.render({ canvasContext: ctx, viewport }).promise
+    await page.render({
+      canvasContext: ctx,
+      viewport,
+      intent: 'display',
+      annotationMode: 0,
+    }).promise
+
+    try {
+      page.cleanup()
+    } catch {
+      // Ignore page cleanup errors
+    }
 
     const mimeType = options.mimeType === 'image/jpeg' ? 'image/jpeg' : 'image/png'
     const quality = typeof options.quality === 'number' ? options.quality : 0.92
@@ -2535,18 +2753,22 @@ async function renderPdfPageWithPdfJs(arrayBuffer, pageNumber, options = {}) {
         // Ignore cleanup errors
       }
     }
+    if (objectUrl) {
+      URL.revokeObjectURL(objectUrl)
+    }
   }
 }
 
 export async function renderPdfPagePreviewToDataUrl(file, pageNumber = 1, options = {}) {
   if (!file) return null
-  const arrayBuffer = options.arrayBuffer || (await file.arrayBuffer())
 
   try {
-    const rendered = await renderPdfPageWithPdfJs(arrayBuffer, pageNumber, options)
+    const source = options.arrayBuffer || file
+    const rendered = await renderPdfPageWithPdfJs(source, pageNumber, options)
     let singlePagePdfBytes = null
     if (!options.skipSinglePagePdf) {
       try {
+        const arrayBuffer = options.arrayBuffer || (await file.arrayBuffer())
         const pdfDoc =
           options.pdfDoc || (await PDFDocument.load(arrayBuffer, { ignoreEncryption: true }))
         const totalPages = pdfDoc.getPageCount()
@@ -2567,6 +2789,8 @@ export async function renderPdfPagePreviewToDataUrl(file, pageNumber = 1, option
   } catch {
     // Fall back to lightweight pdf-lib stream renderer if PDF.js fails
   }
+
+  const arrayBuffer = options.arrayBuffer || (await file.arrayBuffer())
 
   const pdfDoc = options.pdfDoc || (await PDFDocument.load(arrayBuffer, { ignoreEncryption: true }))
   const totalPages = pdfDoc.getPageCount()
@@ -2938,6 +3162,93 @@ export async function renderPdfPagePreviewToDataUrl(file, pageNumber = 1, option
     pixelWidth: canvasW,
     pixelHeight: canvasH,
     renderedElements,
+  }
+}
+
+/**
+ * Merender thumbnail terkompresi seluruh halaman PDF secara progresif menggunakan satu instance PDF.js
+ */
+export async function renderAllPdfPageThumbnails(file, options = {}, onPage) {
+  if (!file) return []
+  const {
+    maxDimension = 168,
+    maxScale = 0.75,
+    mimeType = 'image/jpeg',
+    quality = 0.65,
+    onPageStart,
+    signal,
+  } = options
+
+  if (signal?.aborted) return []
+
+  const objectUrl = URL.createObjectURL(file)
+  let pdfjsDoc = null
+  let fallbackPdfDoc = null
+  let fallbackArrayBuffer = null
+
+  try {
+    try {
+      const loadingTask = pdfjsLib.getDocument({
+        url: objectUrl,
+        disableAutoFetch: true,
+        useSystemFonts: true,
+        isEvalSupported: false,
+        disableFontFace: true,
+      })
+      pdfjsDoc = await loadingTask.promise
+    } catch {
+      pdfjsDoc = null
+    }
+
+    if (!pdfjsDoc) {
+      fallbackArrayBuffer = await file.arrayBuffer()
+      if (signal?.aborted) return []
+      fallbackPdfDoc = await PDFDocument.load(fallbackArrayBuffer, { ignoreEncryption: true })
+    }
+
+    const totalPages = pdfjsDoc ? pdfjsDoc.numPages : fallbackPdfDoc.getPageCount()
+    const thumbnails = new Array(totalPages).fill('')
+
+    for (let pageNum = 1; pageNum <= totalPages; pageNum += 1) {
+      if (signal?.aborted) break
+      if (typeof onPageStart === 'function') {
+        onPageStart(pageNum, totalPages)
+      }
+      let dataUrl
+      try {
+        const rendered = await renderPdfPagePreviewToDataUrl(file, pageNum, {
+          arrayBuffer: fallbackArrayBuffer,
+          pdfjsDoc,
+          pdfDoc: fallbackPdfDoc,
+          maxDimension,
+          maxScale,
+          mimeType,
+          quality,
+          disableFontFace: true,
+          skipSinglePagePdf: true,
+        })
+        dataUrl = rendered?.dataUrl || ''
+      } catch {
+        dataUrl = ''
+      }
+      thumbnails[pageNum - 1] = dataUrl
+      if (typeof onPage === 'function' && !signal?.aborted) {
+        onPage(pageNum, dataUrl, totalPages)
+      }
+      // Beri jeda singkat ke main thread agar UI dan animasi persentase tetap mulus
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    }
+
+    return thumbnails
+  } finally {
+    if (pdfjsDoc) {
+      try {
+        await pdfjsDoc.destroy()
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+    URL.revokeObjectURL(objectUrl)
   }
 }
 
@@ -3431,13 +3742,48 @@ export async function inspectImageFile(file) {
       height,
       formatLabel,
       previewUrl,
+      basePreviewUrl: previewUrl,
+      rotation: 0,
     }
   } finally {
     URL.revokeObjectURL(objectUrl)
   }
 }
 
-async function normalizeImageFileForPdfEmbed(file) {
+export async function rotateImagePreviewUrl(basePreviewUrl, rotationDeg = 0) {
+  const rot = ((rotationDeg % 360) + 360) % 360
+  if (rot === 0) return basePreviewUrl
+
+  const img = await new Promise((resolve, reject) => {
+    const el = new Image()
+    el.onload = () => resolve(el)
+    el.onerror = () => reject(new Error('Gagal memutar pratinjau gambar.'))
+    el.src = basePreviewUrl
+  })
+
+  const w = Math.max(1, img.naturalWidth || img.width || 1)
+  const h = Math.max(1, img.naturalHeight || img.height || 1)
+  const isQuarterTurn = rot === 90 || rot === 270
+
+  const canvas = document.createElement('canvas')
+  canvas.width = isQuarterTurn ? h : w
+  canvas.height = isQuarterTurn ? w : h
+  const ctx = canvas.getContext('2d')
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  ctx.save()
+  ctx.translate(canvas.width / 2, canvas.height / 2)
+  ctx.rotate((rot * Math.PI) / 180)
+  ctx.drawImage(img, -w / 2, -h / 2, w, h)
+  ctx.restore()
+
+  return canvas.toDataURL('image/jpeg', 0.88)
+}
+
+async function normalizeImageFileForPdfEmbed(
+  file,
+  { colorMode = 'color', rotation = 0 } = {}
+) {
   const objectUrl = URL.createObjectURL(file)
   try {
     const img = await new Promise((resolve, reject) => {
@@ -3454,18 +3800,42 @@ async function normalizeImageFileForPdfEmbed(file) {
     const targetW = Math.max(1, Math.round(width * scale))
     const targetH = Math.max(1, Math.round(height * scale))
 
+    const rot = ((rotation % 360) + 360) % 360
+    const isQuarterTurn = rot === 90 || rot === 270
+    const canvasW = isQuarterTurn ? targetH : targetW
+    const canvasH = isQuarterTurn ? targetW : targetH
+
     const canvas = document.createElement('canvas')
-    canvas.width = targetW
-    canvas.height = targetH
+    canvas.width = canvasW
+    canvas.height = canvasH
     const ctx = canvas.getContext('2d')
 
     const isPng =
       /^image\/png$/i.test(file.type || '') || /\.png$/i.test(String(file.name || ''))
     if (!isPng) {
       ctx.fillStyle = '#ffffff'
-      ctx.fillRect(0, 0, targetW, targetH)
+      ctx.fillRect(0, 0, canvasW, canvasH)
     }
-    ctx.drawImage(img, 0, 0, targetW, targetH)
+
+    ctx.save()
+    ctx.translate(canvasW / 2, canvasH / 2)
+    if (rot !== 0) {
+      ctx.rotate((rot * Math.PI) / 180)
+    }
+    ctx.drawImage(img, -targetW / 2, -targetH / 2, targetW, targetH)
+    ctx.restore()
+
+    if (colorMode === 'grayscale') {
+      const imageData = ctx.getImageData(0, 0, canvasW, canvasH)
+      const data = imageData.data
+      for (let p = 0; p < data.length; p += 4) {
+        const lum = Math.round(0.299 * data[p] + 0.587 * data[p + 1] + 0.114 * data[p + 2])
+        data[p] = lum
+        data[p + 1] = lum
+        data[p + 2] = lum
+      }
+      ctx.putImageData(imageData, 0, 0)
+    }
 
     const mimeType = isPng ? 'image/png' : 'image/jpeg'
     const blob = await new Promise((resolve) =>
@@ -3475,17 +3845,78 @@ async function normalizeImageFileForPdfEmbed(file) {
     return {
       bytes: new Uint8Array(buf),
       isPng,
-      width: targetW,
-      height: targetH,
+      width: canvasW,
+      height: canvasH,
     }
   } finally {
     URL.revokeObjectURL(objectUrl)
   }
 }
 
+const IMAGE_PDF_MARGIN_MAP = {
+  none: 0,
+  small: 24,
+  normal: 44,
+}
+
+const IMAGE_PDF_PAGE_PRESETS = {
+  a4: [595.28, 841.89],
+  f4: [609.45, 935.43],
+  letter: [612, 792],
+}
+
+export function computeImagePdfPageLayout(
+  imgW,
+  imgH,
+  { pageSize = 'a4', orientation = 'auto', margin = 'small' } = {}
+) {
+  const safeImgW = Math.max(1, imgW || 1)
+  const safeImgH = Math.max(1, imgH || 1)
+  const marginPt = IMAGE_PDF_MARGIN_MAP[margin] ?? 24
+
+  let pageW
+  let pageH
+
+  if (pageSize === 'fit') {
+    const fitScale = 720 / Math.max(safeImgW, safeImgH, 1)
+    const baseW = Math.max(180, Math.round(safeImgW * Math.min(1, fitScale)))
+    const baseH = Math.max(180, Math.round(safeImgH * Math.min(1, fitScale)))
+    pageW = baseW + marginPt * 2
+    pageH = baseH + marginPt * 2
+  } else {
+    const [presetShort, presetLong] =
+      IMAGE_PDF_PAGE_PRESETS[pageSize] || IMAGE_PDF_PAGE_PRESETS.a4
+    const useLandscape =
+      orientation === 'landscape' || (orientation === 'auto' && safeImgW > safeImgH)
+    pageW = useLandscape ? presetLong : presetShort
+    pageH = useLandscape ? presetShort : presetLong
+  }
+
+  const availW = Math.max(36, pageW - marginPt * 2)
+  const availH = Math.max(36, pageH - marginPt * 2)
+  const drawScale = Math.min(availW / safeImgW, availH / safeImgH)
+  const drawW = safeImgW * drawScale
+  const drawH = safeImgH * drawScale
+  const drawX = (pageW - drawW) / 2
+  const drawY = (pageH - drawH) / 2
+
+  return {
+    pageW,
+    pageH,
+    marginPt,
+    availW,
+    availH,
+    drawW,
+    drawH,
+    drawX,
+    drawY,
+    isLandscape: pageW > pageH,
+  }
+}
+
 export async function convertImagesToPdf(
   items = [],
-  { pageSize = 'a4', orientation = 'auto', margin = 'small' } = {},
+  { pageSize = 'a4', orientation = 'portrait', margin = 'small', colorMode = 'color' } = {},
   onProgress
 ) {
   if (!Array.isArray(items) || items.length < 1) {
@@ -3493,17 +3924,6 @@ export async function convertImagesToPdf(
   }
 
   const pdfDoc = await PDFDocument.create()
-  const marginMap = {
-    none: 0,
-    small: 24,
-    normal: 44,
-  }
-  const marginPt = marginMap[margin] ?? 24
-
-  const pagePresets = {
-    a4: [595.28, 841.89],
-    letter: [612, 792],
-  }
 
   for (let i = 0; i < items.length; i += 1) {
     const item = items[i]
@@ -3513,39 +3933,21 @@ export async function convertImagesToPdf(
       )
     }
 
-    const normalized = await normalizeImageFileForPdfEmbed(item.file)
+    const normalized = await normalizeImageFileForPdfEmbed(item.file, {
+      colorMode,
+      rotation: item.rotation || 0,
+    })
     const embeddedImg = normalized.isPng
       ? await pdfDoc.embedPng(normalized.bytes)
       : await pdfDoc.embedJpg(normalized.bytes)
 
-    const imgW = embeddedImg.width
-    const imgH = embeddedImg.height
-
-    let pageW
-    let pageH
-
-    if (pageSize === 'fit') {
-      const fitScale = 720 / Math.max(imgW, imgH, 1)
-      const baseW = Math.max(180, Math.round(imgW * Math.min(1, fitScale)))
-      const baseH = Math.max(180, Math.round(imgH * Math.min(1, fitScale)))
-      pageW = baseW + marginPt * 2
-      pageH = baseH + marginPt * 2
-    } else {
-      const [presetShort, presetLong] = pagePresets[pageSize] || pagePresets.a4
-      const useLandscape =
-        orientation === 'landscape' || (orientation === 'auto' && imgW > imgH)
-      pageW = useLandscape ? presetLong : presetShort
-      pageH = useLandscape ? presetShort : presetLong
-    }
+    const { pageW, pageH, drawW, drawH, drawX, drawY } = computeImagePdfPageLayout(
+      embeddedImg.width,
+      embeddedImg.height,
+      { pageSize, orientation, margin }
+    )
 
     const page = pdfDoc.addPage([pageW, pageH])
-    const availW = Math.max(36, pageW - marginPt * 2)
-    const availH = Math.max(36, pageH - marginPt * 2)
-    const drawScale = Math.min(availW / Math.max(1, imgW), availH / Math.max(1, imgH))
-    const drawW = imgW * drawScale
-    const drawH = imgH * drawScale
-    const drawX = (pageW - drawW) / 2
-    const drawY = (pageH - drawH) / 2
 
     page.drawImage(embeddedImg, {
       x: drawX,

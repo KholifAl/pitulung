@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   IconArrowUpRight,
   IconCheck,
@@ -12,8 +12,10 @@ import {
 } from '../components/Icons'
 import {
   formatFileSize,
+  formatPageNumbersToRanges,
   inspectPdfFile,
   parsePageRanges,
+  renderAllPdfPageThumbnails,
   splitPdfFile,
   triggerBrowserDownload,
   truncateFileName,
@@ -26,16 +28,78 @@ export default function SplitPdfPage() {
   const [pdfDocInfo, setPdfDocInfo] = useState(null)
   const [splitMode, setSplitMode] = useState('range') // 'range' (Opsi A) | 'all' (Opsi B)
   const [rangeInput, setRangeInput] = useState('')
+  const [pagesPerBundle, setPagesPerBundle] = useState('')
   const [isDragging, setIsDragging] = useState(false)
   const [isInspecting, setIsInspecting] = useState(false)
   const [isSplitting, setIsSplitting] = useState(false)
   const [processStep, setProcessStep] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
   const [splitResult, setSplitResult] = useState(null)
+  const [pageThumbnails, setPageThumbnails] = useState({})
+  const [isRenderingThumbnails, setIsRenderingThumbnails] = useState(false)
+  const [activeRenderPage, setActiveRenderPage] = useState(1)
+  const [pageTick, setPageTick] = useState(0)
 
   const fileInputRef = useRef(null)
   const rangeInputRef = useRef(null)
   const resultRef = useRef(null)
+  const thumbAbortRef = useRef(null)
+  const lastClickedPageRef = useRef(null)
+
+  useEffect(() => {
+    return () => {
+      thumbAbortRef.current?.abort()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isRenderingThumbnails) return undefined
+    const timer = setInterval(() => {
+      setPageTick((t) => t + 1)
+    }, 120)
+    return () => clearInterval(timer)
+  }, [isRenderingThumbnails])
+
+  const startThumbnailRendering = (file) => {
+    thumbAbortRef.current?.abort()
+    const controller = new AbortController()
+    thumbAbortRef.current = controller
+    setPageThumbnails({})
+    setActiveRenderPage(1)
+    setPageTick(0)
+    setIsRenderingThumbnails(true)
+
+    renderAllPdfPageThumbnails(
+      file,
+      {
+        maxDimension: 168,
+        maxScale: 0.75,
+        mimeType: 'image/jpeg',
+        quality: 0.65,
+        onPageStart: (pageNum) => {
+          if (controller.signal.aborted) return
+          setActiveRenderPage(pageNum)
+          setPageTick(0)
+        },
+        signal: controller.signal,
+      },
+      (pageNum, dataUrl) => {
+        if (controller.signal.aborted) return
+        setPageThumbnails((prev) => ({
+          ...prev,
+          [pageNum]: dataUrl,
+        }))
+      }
+    )
+      .catch(() => {
+        // Ignore thumbnail preview errors; fallback placeholder remains visible
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setIsRenderingThumbnails(false)
+        }
+      })
+  }
 
   const handleSelectPdfFile = async (file) => {
     if (!file) return
@@ -48,14 +112,17 @@ export default function SplitPdfPage() {
     )
 
     try {
-      const info = await inspectPdfFile(file)
+      const info = await inspectPdfFile(file, { quick: true })
       setPdfDocInfo(info)
       setSplitResult(null)
+      setPagesPerBundle('')
+      lastClickedPageRef.current = null
       const defaultRange =
         info.pageCount >= 3
           ? `1-2, ${info.pageCount}`
           : '1'
       setRangeInput(defaultRange)
+      startThumbnailRendering(file)
     } catch (err) {
       setErrorMsg(err.message || (isEn ? 'Failed to read PDF file.' : 'Gagal membaca berkas PDF.'))
     } finally {
@@ -65,10 +132,15 @@ export default function SplitPdfPage() {
   }
 
   const handleClearFile = () => {
+    thumbAbortRef.current?.abort()
     setPdfDocInfo(null)
     setSplitResult(null)
     setErrorMsg('')
     setRangeInput('')
+    setPagesPerBundle('')
+    setPageThumbnails({})
+    setIsRenderingThumbnails(false)
+    lastClickedPageRef.current = null
   }
 
   const handleSplitNow = async (e) => {
@@ -102,6 +174,7 @@ export default function SplitPdfPage() {
           file: pdfDocInfo.file,
           mode: splitMode,
           rangeInput,
+          pagesPerBundle: parseInt(pagesPerBundle, 10) || 1,
         },
         (step) => setProcessStep(step)
       )
@@ -141,6 +214,56 @@ export default function SplitPdfPage() {
     pdfDocInfo && splitMode === 'range' && rangeInput.trim()
       ? parsePageRanges(rangeInput, pdfDocInfo.pageCount)
       : null
+
+  const selectedPagesList = pdfDocInfo
+    ? splitMode === 'all'
+      ? Array.from({ length: pdfDocInfo.pageCount }, (_, i) => i + 1)
+      : rangePreview && !rangePreview.error
+        ? rangePreview.pages
+        : []
+    : []
+  const selectedPageSet = new Set(selectedPagesList)
+  const renderedThumbCount = pdfDocInfo
+    ? Object.keys(pageThumbnails).filter((k) => Boolean(pageThumbnails[k])).length
+    : 0
+
+  const handleTogglePage = (pageNum, event) => {
+    if (!pdfDocInfo || splitMode !== 'range' || isBusy) return
+    const nextSet = new Set(selectedPageSet)
+
+    if (event?.shiftKey && lastClickedPageRef.current != null) {
+      const start = Math.min(lastClickedPageRef.current, pageNum)
+      const end = Math.max(lastClickedPageRef.current, pageNum)
+      for (let p = start; p <= end; p += 1) {
+        nextSet.add(p)
+      }
+    } else if (nextSet.has(pageNum)) {
+      nextSet.delete(pageNum)
+    } else {
+      nextSet.add(pageNum)
+    }
+
+    lastClickedPageRef.current = pageNum
+    setRangeInput(formatPageNumbersToRanges(Array.from(nextSet)))
+    setErrorMsg('')
+    setSplitResult(null)
+  }
+
+  const handleSelectAllPages = () => {
+    if (!pdfDocInfo || isBusy) return
+    setRangeInput(pdfDocInfo.pageCount === 1 ? '1' : `1-${pdfDocInfo.pageCount}`)
+    lastClickedPageRef.current = null
+    setErrorMsg('')
+    setSplitResult(null)
+  }
+
+  const handleClearSelection = () => {
+    if (isBusy) return
+    setRangeInput('')
+    lastClickedPageRef.current = null
+    setErrorMsg('')
+    setSplitResult(null)
+  }
 
   return (
     <section className="clean-hero-section">
@@ -244,9 +367,6 @@ export default function SplitPdfPage() {
                       <strong className="active-doc-filename" title={pdfDocInfo.name}>
                         {truncateFileName(pdfDocInfo.name, 34)}
                       </strong>
-                      <span className="active-doc-tag">
-                        {pdfDocInfo.pageCount} {isEn ? 'Pages' : 'Halaman'}
-                      </span>
                       <span className="pdf-file-size">
                         {formatFileSize(pdfDocInfo.size)}
                       </span>
@@ -257,42 +377,6 @@ export default function SplitPdfPage() {
                       >
                         <IconCheck size={12} />
                       </span>
-                    </div>
-                    <div className="active-doc-questions">
-                      <span>{isEn ? 'Quick select:' : 'Pilih cepat:'}</span>
-                      <button
-                        type="button"
-                        className="doc-quick-chip"
-                        onClick={() => {
-                          setSplitMode('range')
-                          setRangeInput('1')
-                        }}
-                      >
-                        {isEn ? 'Page 1 Only' : 'Halaman 1 Saja'}
-                      </button>
-                      {pdfDocInfo.pageCount >= 3 && (
-                        <button
-                          type="button"
-                          className="doc-quick-chip"
-                          onClick={() => {
-                            setSplitMode('range')
-                            setRangeInput(`1-2, ${pdfDocInfo.pageCount}`)
-                          }}
-                        >
-                          {isEn
-                            ? `Pages 1-2 & Last (${pdfDocInfo.pageCount})`
-                            : `Hal. 1-2 & Terakhir (${pdfDocInfo.pageCount})`}
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        className="doc-quick-chip"
-                        onClick={() => setSplitMode('all')}
-                      >
-                        {isEn
-                          ? `All Pages (${pdfDocInfo.pageCount} Files)`
-                          : `Semua Halaman (${pdfDocInfo.pageCount} File)`}
-                      </button>
                     </div>
                   </div>
                 </div>
@@ -388,7 +472,7 @@ export default function SplitPdfPage() {
               </div>
             </div>
 
-            {/* FORM INPUT RENTANG ATAU RINGKASAN SEMUA HALAMAN */}
+            {/* FORM INPUT RENTANG ATAU PENGATURAN BUNDEL */}
             {splitMode === 'range' ? (
               <div className="pdf-range-input-wrapper">
                 <div className="clean-input-box">
@@ -423,42 +507,285 @@ export default function SplitPdfPage() {
                   )}
                 </div>
 
-                {rangePreview && (
-                  <div
-                    className={`pdf-range-preview-hint ${
-                      rangePreview.error ? 'is-invalid' : 'is-valid'
-                    }`}
-                  >
-                    {rangePreview.error ? (
-                      <span>{rangePreview.error}</span>
-                    ) : (
-                      <span>
-                        {isEn ? (
-                          <>
-                            Will extract <strong>{rangePreview.pages.length} pages</strong> (Pages:{' '}
-                            {rangePreview.pages.join(', ')}) out of {pdfDocInfo.pageCount} total pages.
-                          </>
-                        ) : (
-                          <>
-                            Akan mengekstrak <strong>{rangePreview.pages.length} halaman</strong> (Halaman:{' '}
-                            {rangePreview.pages.join(', ')}) dari total {pdfDocInfo.pageCount} halaman.
-                          </>
-                        )}
-                      </span>
-                    )}
+                {rangePreview?.error && (
+                  <div className="pdf-range-preview-hint is-invalid">
+                    <span>{rangePreview.error}</span>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="pdf-all-pages-summary-box">
-                <IconSplitPdf size={16} />
-                <span>
+              <div className="pdf-bundle-row">
+                <label className="pdf-bundle-label" htmlFor="split-bundle-custom-input">
+                  {isEn ? 'Pages per bundle:' : 'Halaman per bundel:'}
+                </label>
+                <div className="clean-input-box pdf-bundle-input-box">
+                  <input
+                    id="split-bundle-custom-input"
+                    type="number"
+                    min={1}
+                    max={pdfDocInfo.pageCount}
+                    className="clean-text-input"
+                    placeholder={isEn ? '1 page per pdf' : '1 halaman per pdf'}
+                    value={pagesPerBundle}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      if (val === '') {
+                        setPagesPerBundle('')
+                      } else {
+                        const raw = parseInt(val, 10)
+                        if (!Number.isNaN(raw)) {
+                          setPagesPerBundle(
+                            String(Math.max(1, Math.min(pdfDocInfo.pageCount, raw)))
+                          )
+                        }
+                      }
+                      setSplitResult(null)
+                    }}
+                    disabled={isBusy}
+                    aria-label={isEn ? 'Pages per PDF bundle' : 'Jumlah halaman per file PDF'}
+                  />
+                  {pagesPerBundle !== '' && (
+                    <button
+                      type="button"
+                      className="clean-clear-btn"
+                      onClick={() => {
+                        setPagesPerBundle('')
+                        setSplitResult(null)
+                      }}
+                      title={isEn ? 'Reset to 1 page per pdf' : 'Reset ke 1 halaman per pdf'}
+                      aria-label={isEn ? 'Reset to 1 page per pdf' : 'Reset ke 1 halaman per pdf'}
+                    >
+                      <IconClose size={12} />
+                    </button>
+                  )}
+                </div>
+                <span className="pdf-bundle-output-count">
                   {isEn
-                    ? `All ${pdfDocInfo.pageCount} pages of "${truncateFileName(pdfDocInfo.name, 26)}" will be split into ${pdfDocInfo.pageCount} separate PDF files.`
-                    : `Seluruh ${pdfDocInfo.pageCount} halaman dari "${truncateFileName(pdfDocInfo.name, 26)}" akan dipecah menjadi ${pdfDocInfo.pageCount} file PDF terpisah.`}
+                    ? `Total: ${Math.ceil(pdfDocInfo.pageCount / Math.max(1, Math.min(pdfDocInfo.pageCount, parseInt(pagesPerBundle, 10) || 1)))} files`
+                    : `Jadi ${Math.ceil(pdfDocInfo.pageCount / Math.max(1, Math.min(pdfDocInfo.pageCount, parseInt(pagesPerBundle, 10) || 1)))} file`}
                 </span>
               </div>
             )}
+
+            {/* VISUALISASI SEMUA HALAMAN PDF & PEMILIHAN INTERAKTIF */}
+            {(() => {
+              const effectiveBundleSize = Math.max(
+                1,
+                Math.min(pdfDocInfo.pageCount, Number(pagesPerBundle) || 1)
+              )
+              const totalBundleFiles = Math.ceil(pdfDocInfo.pageCount / effectiveBundleSize)
+
+              return (
+                <div className="pdf-split-preview-section">
+                  <div className="pdf-split-preview-head">
+                    <div className="pdf-split-preview-meta">
+                      <strong className="pdf-split-preview-title">
+                        {splitMode === 'range'
+                          ? isEn
+                            ? 'Preview & Select Pages'
+                            : 'Pratinjau & Pilih Halaman'
+                          : isEn
+                            ? 'Page Split & Bundle Visualization'
+                            : 'Visualisasi Pemisahan & Bundel'}
+                      </strong>
+                      <span className="pdf-split-preview-subtitle">
+                        {splitMode === 'range'
+                          ? isEn
+                            ? `${selectedPageSet.size} of ${pdfDocInfo.pageCount} pages selected • Click to toggle, Shift+Click for range`
+                            : `${selectedPageSet.size} dari ${pdfDocInfo.pageCount} halaman dipilih • Klik untuk pilih, Shift+Klik untuk rentang`
+                          : effectiveBundleSize === 1
+                            ? isEn
+                              ? `Each of the ${pdfDocInfo.pageCount} pages below will become an individual PDF file`
+                              : `Setiap dari ${pdfDocInfo.pageCount} halaman di bawah akan menjadi 1 file PDF mandiri`
+                            : isEn
+                              ? `${pdfDocInfo.pageCount} pages will be bundled per ${effectiveBundleSize} pages into ${totalBundleFiles} PDF files`
+                              : `${pdfDocInfo.pageCount} halaman akan dibundel per ${effectiveBundleSize} halaman menjadi ${totalBundleFiles} file PDF`}
+                        {isRenderingThumbnails && (
+                          <span className="pdf-split-preview-loading">
+                            {isEn
+                              ? ` • Loading preview ${renderedThumbCount}/${pdfDocInfo.pageCount}...`
+                              : ` • Memuat pratinjau ${renderedThumbCount}/${pdfDocInfo.pageCount}...`}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+
+                    {splitMode === 'range' && (
+                      <div className="pdf-split-preview-actions">
+                        <button
+                          type="button"
+                          className="doc-quick-chip"
+                          onClick={handleSelectAllPages}
+                          disabled={isBusy || selectedPageSet.size === pdfDocInfo.pageCount}
+                        >
+                          {isEn ? 'Select All' : 'Pilih Semua'}
+                        </button>
+                        <button
+                          type="button"
+                          className="doc-quick-chip"
+                          onClick={handleClearSelection}
+                          disabled={isBusy || selectedPageSet.size === 0}
+                        >
+                          {isEn ? 'Clear' : 'Kosongkan'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div
+                    className="pdf-split-pages-grid"
+                    role="region"
+                    aria-label={isEn ? 'PDF pages preview' : 'Pratinjau halaman PDF'}
+                  >
+                    {Array.from({ length: pdfDocInfo.pageCount }, (_, idx) => {
+                      const pageNum = idx + 1
+                      const thumbUrl = pageThumbnails[pageNum]
+                      const isSelected = selectedPageSet.has(pageNum)
+
+                      const activeFraction = Math.min(0.88, 1 - Math.exp(-pageTick * 0.22))
+                      const loadingPct = !isRenderingThumbnails
+                        ? 100
+                        : pageNum === activeRenderPage
+                          ? Math.min(95, Math.max(14, Math.round(14 + activeFraction * 81)))
+                          : pageNum > activeRenderPage
+                            ? Math.min(
+                                88,
+                                Math.max(
+                                  6,
+                                  Math.round(((renderedThumbCount + activeFraction) / pageNum) * 84)
+                                )
+                              )
+                            : 96
+
+                      const loadingOverlay = isRenderingThumbnails ? (
+                        <div
+                          className="pdf-split-page-loader"
+                          role="status"
+                          aria-label={
+                            isEn
+                              ? `Loading page ${pageNum} preview ${loadingPct}%`
+                              : `Memuat pratinjau halaman ${pageNum} ${loadingPct}%`
+                          }
+                        >
+                          <span className="pdf-page-progress-pct">{loadingPct}%</span>
+                        </div>
+                      ) : (
+                        <div className="pdf-split-page-skeleton">
+                          <IconFileText size={20} />
+                          <span>{pageNum}</span>
+                        </div>
+                      )
+
+                      if (splitMode === 'range') {
+                        return (
+                          <button
+                            key={pageNum}
+                            type="button"
+                            aria-pressed={isSelected}
+                            disabled={isBusy}
+                            onClick={(e) => handleTogglePage(pageNum, e)}
+                            className={`pdf-split-page-card is-selectable ${
+                              isSelected ? 'is-selected' : 'is-unselected'
+                            }`}
+                          >
+                            <div className="pdf-split-page-top">
+                              <span className="pdf-split-page-num">
+                                {isEn ? `Page ${pageNum}` : `Hal. ${pageNum}`}
+                              </span>
+                              <span className="pdf-split-page-check" aria-hidden="true">
+                                {isSelected && <IconCheck size={11} />}
+                              </span>
+                            </div>
+
+                            <div className="pdf-split-page-thumb">
+                              {thumbUrl ? (
+                                <img
+                                  src={thumbUrl}
+                                  alt={isEn ? `Page ${pageNum} preview` : `Pratinjau halaman ${pageNum}`}
+                                  loading="lazy"
+                                />
+                              ) : (
+                                loadingOverlay
+                              )}
+                            </div>
+
+                            <div className="pdf-split-page-footer">
+                              <span className="pdf-split-page-status">
+                                {isSelected
+                                  ? isEn
+                                    ? 'Selected'
+                                    : 'Dipilih'
+                                  : isEn
+                                    ? 'Not selected'
+                                    : 'Tidak dipilih'}
+                              </span>
+                            </div>
+                          </button>
+                        )
+                      }
+
+                      const bundleIndex = Math.floor((pageNum - 1) / effectiveBundleSize) + 1
+                      const bundleStart = (bundleIndex - 1) * effectiveBundleSize + 1
+                      const bundleEnd = Math.min(
+                        pdfDocInfo.pageCount,
+                        bundleStart + effectiveBundleSize - 1
+                      )
+                      const bundleRangeLabel =
+                        bundleStart === bundleEnd
+                          ? isEn
+                            ? `Pg ${bundleStart}`
+                            : `Hal. ${bundleStart}`
+                          : isEn
+                            ? `Pgs ${bundleStart}-${bundleEnd}`
+                            : `Hal. ${bundleStart}-${bundleEnd}`
+
+                      return (
+                        <div
+                          key={pageNum}
+                          className={`pdf-split-page-card is-split-all ${
+                            effectiveBundleSize > 1 && bundleIndex % 2 === 0 ? 'is-bundle-alt' : ''
+                          }`}
+                        >
+                          <div className="pdf-split-page-top">
+                            <span className="pdf-split-page-num">
+                              {isEn ? `Page ${pageNum}` : `Hal. ${pageNum}`}
+                            </span>
+                            <span className="pdf-split-page-output-tag">
+                              {`File #${bundleIndex}`}
+                            </span>
+                          </div>
+
+                          <div className="pdf-split-page-thumb">
+                            {thumbUrl ? (
+                              <img
+                                src={thumbUrl}
+                                alt={isEn ? `Page ${pageNum} preview` : `Pratinjau halaman ${pageNum}`}
+                                loading="lazy"
+                              />
+                            ) : (
+                              loadingOverlay
+                            )}
+                          </div>
+
+                          <div className="pdf-split-page-footer">
+                            <span className="pdf-split-page-status is-split-cut">
+                              <IconSplitPdf size={12} />
+                              <span>
+                                {effectiveBundleSize === 1
+                                  ? isEn
+                                    ? 'Separate PDF'
+                                    : 'PDF terpisah'
+                                  : bundleRangeLabel}
+                              </span>
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* PRIMARY ACTION ROW: PRIVASI DI KIRI, TOMBOL SPLIT DI KANAN */}
             <div className="pdf-action-bar" style={{ marginTop: '18px' }}>

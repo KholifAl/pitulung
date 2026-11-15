@@ -29,7 +29,6 @@ import {
 } from './utils/qris'
 import {
   IconArrowUpRight,
-  IconArrowLeft,
   IconArrowRight,
   IconCilok,
   IconSparkle,
@@ -47,6 +46,7 @@ import {
   IconMergePdf,
   IconSplitPdf,
   IconCompressPdf,
+  IconCompressImage,
   IconSignPdf,
   IconImageToPdf,
   IconPdfToImage,
@@ -60,6 +60,7 @@ import { truncateFileName } from './utils/pdfTools'
 import MergePdfPage from './pages/MergePdfPage'
 import SplitPdfPage from './pages/SplitPdfPage'
 import CompressPdfPage from './pages/CompressPdfPage'
+import CompressImagePage from './pages/CompressImagePage'
 import SignPdfPage from './pages/SignPdfPage'
 import ImageToPdfPage from './pages/ImageToPdfPage'
 import PdfToImagePage from './pages/PdfToImagePage'
@@ -169,6 +170,13 @@ const NAV_TOOL_ROUTES_BY_LANG = {
       icon: IconCompressPdf,
     },
     {
+      path: '/compress-image',
+      label: 'Kompres Gambar',
+      shortDesc: 'Perkecil ukuran JPG, PNG, WEBP dengan target',
+      badge: 'GAMBAR',
+      icon: IconCompressImage,
+    },
+    {
       path: '/sign-pdf',
       label: 'Tanda Tangani PDF',
       shortDesc: 'Bubuhkan tanda tangan ke halaman PDF',
@@ -218,6 +226,13 @@ const NAV_TOOL_ROUTES_BY_LANG = {
       shortDesc: 'Reduce PDF file size in browser',
       badge: 'PDF',
       icon: IconCompressPdf,
+    },
+    {
+      path: '/compress-image',
+      label: 'Compress Image',
+      shortDesc: 'Shrink JPG, PNG, WEBP size with target presets',
+      badge: 'IMAGE',
+      icon: IconCompressImage,
     },
     {
       path: '/sign-pdf',
@@ -439,8 +454,10 @@ function TinulungAppShell() {
   const navMenuRef = useRef(null)
   const langMenuRef = useRef(null)
   const qfSliderRef = useRef(null)
+  const qfDragRef = useRef({ active: false, moved: false, startX: 0, startScrollLeft: 0 })
   const [qfSlideIndex, setQfSlideIndex] = useState(0)
   const [isQfPaused, setIsQfPaused] = useState(false)
+  const [isQfDragging, setIsQfDragging] = useState(false)
 
   const scrollToQfSlide = useCallback((targetIndex) => {
     const track = qfSliderRef.current
@@ -468,6 +485,55 @@ function TinulungAppShell() {
     if (step <= 0) return
     const idx = Math.round(track.scrollLeft / step)
     setQfSlideIndex(idx)
+  }, [])
+
+  const handleQfMouseDown = useCallback((e) => {
+    if (e.button !== 0) return
+    const track = qfSliderRef.current
+    if (!track) return
+    qfDragRef.current = {
+      active: true,
+      moved: false,
+      startX: e.clientX,
+      startScrollLeft: track.scrollLeft,
+    }
+    setIsQfPaused(true)
+  }, [])
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      const drag = qfDragRef.current
+      const track = qfSliderRef.current
+      if (!drag.active || !track) return
+      const dx = e.clientX - drag.startX
+      if (!drag.moved && Math.abs(dx) > 5) {
+        drag.moved = true
+        setIsQfDragging(true)
+      }
+      if (drag.moved) {
+        track.scrollLeft = drag.startScrollLeft - dx
+      }
+    }
+
+    const handleMouseUp = () => {
+      const drag = qfDragRef.current
+      if (!drag.active) return
+      drag.active = false
+      setIsQfDragging(false)
+      setIsQfPaused(false)
+      if (drag.moved) {
+        requestAnimationFrame(() => {
+          qfDragRef.current.moved = false
+        })
+      }
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
   }, [])
 
   useEffect(() => {
@@ -1057,8 +1123,8 @@ function TinulungAppShell() {
           </button>
         </form>
 
-        <div className="workspace-footer-bar">
-          {(quotaStatus === 'warning' || quotaStatus === 'exhausted') && (
+        {(quotaStatus === 'warning' || quotaStatus === 'exhausted') && (
+          <div className="workspace-footer-bar">
             <div
               className={`quota-status-indicator ${
                 quotaStatus === 'exhausted' ? 'is-exhausted' : 'is-warning'
@@ -1081,36 +1147,8 @@ function TinulungAppShell() {
                 </strong>
               </span>
             </div>
-          )}
-
-          <div className="preset-pills-group">
-            <span className="preset-caption">{isEn ? 'Quick try:' : 'Coba cepat:'}</span>
-            <button
-              type="button"
-              className="clean-preset-btn"
-              onClick={() => handleQuickDemo('dokumen')}
-            >
-              <IconFileText size={13} />
-              <span>{isEn ? 'Ask Document' : 'Tanya Dokumen'}</span>
-            </button>
-            <button
-              type="button"
-              className="clean-preset-btn"
-              onClick={() => handleQuickDemo('toko')}
-            >
-              <IconTable size={13} />
-              <span>{isEn ? 'Web Link to Table' : 'Link Jadi Tabel'}</span>
-            </button>
-            <button
-              type="button"
-              className="clean-preset-btn"
-              onClick={() => handleQuickDemo('teks')}
-            >
-              <IconMessage size={13} />
-              <span>{isEn ? 'WA Order Recap' : 'Rekap Order WA'}</span>
-            </button>
           </div>
-        </div>
+        )}
 
         {errorMsg && (
           <div className="clean-error-banner" role="alert">
@@ -1344,7 +1382,7 @@ function TinulungAppShell() {
         )}
       </div>
 
-      {/* HORIZONTAL SLIDER: SHOWS 3 MAIN FEATURE CARDS AT A TIME WITH LEFT/RIGHT CONTROLS */}
+      {/* HORIZONTAL SLIDER: DRAGGABLE / SWIPEABLE FEATURE CARDS */}
       <div
         className="quick-features-slider-stage"
         onMouseEnter={() => setIsQfPaused(true)}
@@ -1355,20 +1393,18 @@ function TinulungAppShell() {
         onTouchEnd={() => setIsQfPaused(false)}
       >
         <div className="qf-slider-track-wrap">
-          <button
-            type="button"
-            className="qf-slider-nav-btn is-prev"
-            onClick={() => scrollToQfSlide(qfSlideIndex - 1)}
-            aria-label={isEn ? 'Previous features' : 'Geser ke fitur sebelumnya'}
-            title={isEn ? 'Slide Left' : 'Geser Kiri'}
-          >
-            <IconArrowLeft size={16} strokeWidth={2.75} />
-          </button>
-
           <div
             ref={qfSliderRef}
-            className="quick-features-grid"
+            className={`quick-features-grid${isQfDragging ? ' is-dragging' : ''}`}
             onScroll={handleQfTrackScroll}
+            onMouseDown={handleQfMouseDown}
+            onClickCapture={(e) => {
+              if (qfDragRef.current.moved) {
+                e.preventDefault()
+                e.stopPropagation()
+              }
+            }}
+            onDragStart={(e) => e.preventDefault()}
           >
             <button
               type="button"
@@ -1461,6 +1497,25 @@ function TinulungAppShell() {
             <button
               type="button"
               className="quick-feature-card"
+              onClick={() => navigate('/compress-image')}
+            >
+              <div className="qf-top">
+                <span className="qf-number">{isEn ? 'COMPRESS IMAGE' : 'KOMPRES GAMBAR'}</span>
+                <span className="qf-arrow">
+                  <IconArrowUpRight size={14} />
+                </span>
+              </div>
+              <h3>{isEn ? 'Shrink Image Size' : 'Perkecil Ukuran Gambar'}</h3>
+              <p>
+                {isEn
+                  ? 'Compress JPG, PNG, or WEBP images with quick size targets in your browser.'
+                  : 'Kompres gambar JPG, PNG, atau WEBP dengan pilihan target ukuran di browser.'}
+              </p>
+            </button>
+
+            <button
+              type="button"
+              className="quick-feature-card"
               onClick={() => navigate('/sign-pdf')}
             >
               <div className="qf-top">
@@ -1515,16 +1570,6 @@ function TinulungAppShell() {
               </p>
             </button>
           </div>
-
-          <button
-            type="button"
-            className="qf-slider-nav-btn is-next"
-            onClick={() => scrollToQfSlide(qfSlideIndex + 1)}
-            aria-label={isEn ? 'Next features' : 'Geser ke fitur berikutnya'}
-            title={isEn ? 'Slide Right' : 'Geser Kanan'}
-          >
-            <IconArrowRight size={16} strokeWidth={2.75} />
-          </button>
         </div>
 
         <div
@@ -1659,6 +1704,7 @@ function TinulungAppShell() {
             <Route path="/merge-pdf" element={<MergePdfPage />} />
             <Route path="/split-pdf" element={<SplitPdfPage />} />
             <Route path="/compress-pdf" element={<CompressPdfPage />} />
+            <Route path="/compress-image" element={<CompressImagePage />} />
             <Route path="/sign-pdf" element={<SignPdfPage />} />
             <Route path="/image-to-pdf" element={<ImageToPdfPage />} />
             <Route path="/pdf-to-image" element={<PdfToImagePage />} />

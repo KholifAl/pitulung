@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   IconArrowUpRight,
   IconCheck,
@@ -13,8 +13,10 @@ import {
 import {
   convertPdfToImages,
   formatFileSize,
+  formatPageNumbersToRanges,
   inspectPdfFile,
   parsePageRanges,
+  renderAllPdfPageThumbnails,
   triggerBrowserDownload,
   truncateFileName,
 } from '../utils/pdfTools'
@@ -24,7 +26,6 @@ export default function PdfToImagePage() {
   const { lang } = useLanguage()
   const isEn = lang === 'en'
   const [pdfDocInfo, setPdfDocInfo] = useState(null)
-  const [extractMode, setExtractMode] = useState('all')
   const [rangeInput, setRangeInput] = useState('')
   const [imageFormat, setImageFormat] = useState('png')
   const [imageQuality, setImageQuality] = useState('high')
@@ -34,10 +35,71 @@ export default function PdfToImagePage() {
   const [processStep, setProcessStep] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
   const [convertedResult, setConvertedResult] = useState(null)
+  const [pageThumbnails, setPageThumbnails] = useState({})
+  const [isRenderingThumbnails, setIsRenderingThumbnails] = useState(false)
+  const [activeRenderPage, setActiveRenderPage] = useState(1)
+  const [pageTick, setPageTick] = useState(0)
 
   const fileInputRef = useRef(null)
   const rangeInputRef = useRef(null)
   const resultRef = useRef(null)
+  const thumbAbortRef = useRef(null)
+  const lastClickedPageRef = useRef(null)
+
+  useEffect(() => {
+    return () => {
+      thumbAbortRef.current?.abort()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isRenderingThumbnails) return undefined
+    const timer = setInterval(() => {
+      setPageTick((t) => t + 1)
+    }, 120)
+    return () => clearInterval(timer)
+  }, [isRenderingThumbnails])
+
+  const startThumbnailRendering = (file) => {
+    thumbAbortRef.current?.abort()
+    const controller = new AbortController()
+    thumbAbortRef.current = controller
+    setPageThumbnails({})
+    setActiveRenderPage(1)
+    setPageTick(0)
+    setIsRenderingThumbnails(true)
+
+    renderAllPdfPageThumbnails(
+      file,
+      {
+        maxDimension: 168,
+        maxScale: 0.75,
+        mimeType: 'image/jpeg',
+        quality: 0.65,
+        onPageStart: (pageNum) => {
+          if (controller.signal.aborted) return
+          setActiveRenderPage(pageNum)
+          setPageTick(0)
+        },
+        signal: controller.signal,
+      },
+      (pageNum, dataUrl) => {
+        if (controller.signal.aborted) return
+        setPageThumbnails((prev) => ({
+          ...prev,
+          [pageNum]: dataUrl,
+        }))
+      }
+    )
+      .catch(() => {
+        // Ignore thumbnail preview errors; fallback placeholder remains visible
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setIsRenderingThumbnails(false)
+        }
+      })
+  }
 
   const handleSelectPdfFile = async (file) => {
     if (!file) return
@@ -50,11 +112,13 @@ export default function PdfToImagePage() {
     )
 
     try {
-      const info = await inspectPdfFile(file)
+      const info = await inspectPdfFile(file, { quick: true })
       setPdfDocInfo(info)
       setConvertedResult(null)
-      const defaultRange = info.pageCount >= 3 ? `1-2, ${info.pageCount}` : '1'
+      lastClickedPageRef.current = null
+      const defaultRange = info.pageCount === 1 ? '1' : `1-${info.pageCount}`
       setRangeInput(defaultRange)
+      startThumbnailRendering(file)
     } catch (err) {
       setErrorMsg(
         err.message || (isEn ? 'Failed to read PDF file.' : 'Gagal membaca berkas PDF.')
@@ -66,17 +130,66 @@ export default function PdfToImagePage() {
   }
 
   const handleClearFile = () => {
+    thumbAbortRef.current?.abort()
     setPdfDocInfo(null)
     setConvertedResult(null)
     setErrorMsg('')
     setRangeInput('')
+    setPageThumbnails({})
+    setIsRenderingThumbnails(false)
+    lastClickedPageRef.current = null
   }
 
   const isBusy = isInspecting || isConverting
   const rangePreview =
-    pdfDocInfo && extractMode === 'range' && rangeInput.trim()
+    pdfDocInfo && rangeInput.trim()
       ? parsePageRanges(rangeInput, pdfDocInfo.pageCount)
       : null
+
+  const selectedPagesList =
+    pdfDocInfo && rangePreview && !rangePreview.error ? rangePreview.pages : []
+  const selectedPageSet = new Set(selectedPagesList)
+  const renderedThumbCount = pdfDocInfo
+    ? Object.keys(pageThumbnails).filter((k) => Boolean(pageThumbnails[k])).length
+    : 0
+
+  const handleTogglePage = (pageNum, event) => {
+    if (!pdfDocInfo || isBusy) return
+    const nextSet = new Set(selectedPageSet)
+
+    if (event?.shiftKey && lastClickedPageRef.current != null) {
+      const start = Math.min(lastClickedPageRef.current, pageNum)
+      const end = Math.max(lastClickedPageRef.current, pageNum)
+      for (let p = start; p <= end; p += 1) {
+        nextSet.add(p)
+      }
+    } else if (nextSet.has(pageNum)) {
+      nextSet.delete(pageNum)
+    } else {
+      nextSet.add(pageNum)
+    }
+
+    lastClickedPageRef.current = pageNum
+    setRangeInput(formatPageNumbersToRanges(Array.from(nextSet)))
+    setErrorMsg('')
+    setConvertedResult(null)
+  }
+
+  const handleSelectAllPages = () => {
+    if (!pdfDocInfo || isBusy) return
+    setRangeInput(pdfDocInfo.pageCount === 1 ? '1' : `1-${pdfDocInfo.pageCount}`)
+    lastClickedPageRef.current = null
+    setErrorMsg('')
+    setConvertedResult(null)
+  }
+
+  const handleClearSelection = () => {
+    if (isBusy) return
+    setRangeInput('')
+    lastClickedPageRef.current = null
+    setErrorMsg('')
+    setConvertedResult(null)
+  }
 
   const handleConvertNow = async (e) => {
     if (e) e.preventDefault()
@@ -87,10 +200,7 @@ export default function PdfToImagePage() {
       return
     }
 
-    if (
-      extractMode === 'range' &&
-      (!rangePreview || rangePreview.error || rangePreview.pages.length === 0)
-    ) {
+    if (!rangePreview || rangePreview.error || rangePreview.pages.length === 0) {
       setErrorMsg(
         rangePreview?.error ||
           (isEn
@@ -112,7 +222,7 @@ export default function PdfToImagePage() {
       const res = await convertPdfToImages(
         {
           file: pdfDocInfo.file,
-          mode: extractMode,
+          mode: 'range',
           rangeInput,
           format: imageFormat,
           quality: imageQuality,
@@ -245,9 +355,6 @@ export default function PdfToImagePage() {
                       <strong className="active-doc-filename" title={pdfDocInfo.name}>
                         {truncateFileName(pdfDocInfo.name, 34)}
                       </strong>
-                      <span className="active-doc-tag">
-                        {pdfDocInfo.pageCount} {isEn ? 'Pages' : 'Halaman'}
-                      </span>
                       <span className="pdf-file-size">{formatFileSize(pdfDocInfo.size)}</span>
                       <span
                         className="active-doc-verified"
@@ -284,141 +391,182 @@ export default function PdfToImagePage() {
               </div>
             </div>
 
-            <div className="pdf-split-mode-section">
-              <span className="pdf-mode-label">
-                {isEn ? 'Select Page Extraction Mode:' : 'Pilih Halaman yang Diubah:'}
-              </span>
-              <div
-                className="pdf-split-mode-grid"
-                role="radiogroup"
-                aria-label={isEn ? 'Page extraction mode' : 'Mode pemilihan halaman'}
-              >
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={extractMode === 'all'}
-                  className={`pdf-mode-card ${extractMode === 'all' ? 'is-active' : ''}`}
-                  onClick={() => {
-                    setExtractMode('all')
-                    setConvertedResult(null)
+            <div className="pdf-range-input-wrapper">
+              <div className="clean-input-box">
+                <input
+                  ref={rangeInputRef}
+                  type="text"
+                  className="clean-text-input"
+                  placeholder={
+                    isEn
+                      ? `Enter page range (1 to ${pdfDocInfo.pageCount}), e.g. 1-3, 5`
+                      : `Ketik rentang halaman (1 s/d ${pdfDocInfo.pageCount}), misal: 1-3, 5`
+                  }
+                  value={rangeInput}
+                  onChange={(e) => {
+                    setRangeInput(e.target.value)
+                    setErrorMsg('')
                   }}
-                >
-                  <div className="pdf-mode-card-top">
-                    <strong>
-                      {isEn ? 'All Pages to Images' : 'Semua Halaman Jadi Gambar'}
-                    </strong>
-                    <span className="pdf-mode-radio-dot" />
-                  </div>
-                  <span>
-                    {isEn ? (
-                      <>
-                        Convert every page into separate image files (download individually or as a{' '}
-                        <code>.zip</code> bundle).
-                      </>
-                    ) : (
-                      <>
-                        Ubah seluruh halaman menjadi berkas gambar terpisah (bisa diunduh satuan atau bundel{' '}
-                        <code>.zip</code>).
-                      </>
-                    )}
-                  </span>
-                </button>
+                  aria-label={isEn ? 'Page Range' : 'Rentang Halaman'}
+                />
+                {rangeInput && (
+                  <button
+                    type="button"
+                    className="clean-clear-btn"
+                    onClick={() => {
+                      setRangeInput('')
+                      rangeInputRef.current?.focus()
+                    }}
+                    title={isEn ? 'Clear range' : 'Bersihkan rentang'}
+                    aria-label={isEn ? 'Clear range' : 'Bersihkan rentang'}
+                  >
+                    <IconClose size={12} />
+                  </button>
+                )}
+              </div>
 
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={extractMode === 'range'}
-                  className={`pdf-mode-card ${extractMode === 'range' ? 'is-active' : ''}`}
-                  onClick={() => {
-                    setExtractMode('range')
-                    setConvertedResult(null)
-                  }}
-                >
-                  <div className="pdf-mode-card-top">
-                    <strong>{isEn ? 'Custom Page Range' : 'Rentang Halaman Kustom'}</strong>
-                    <span className="pdf-mode-radio-dot" />
-                  </div>
-                  <span>
-                    {isEn ? (
-                      <>
-                        Convert specific pages only (e.g. <code>1-3, 5</code>).
-                      </>
-                    ) : (
-                      <>
-                        Ubah halaman tertentu saja sesuai pilihanmu (misal: <code>1-3, 5</code>).
-                      </>
+              {rangePreview?.error && (
+                <div className="pdf-range-preview-hint is-invalid">
+                  <span>{rangePreview.error}</span>
+                </div>
+              )}
+            </div>
+
+            {/* VISUALISASI SEMUA HALAMAN PDF & PEMILIHAN INTERAKTIF */}
+            <div className="pdf-split-preview-section">
+              <div className="pdf-split-preview-head">
+                <div className="pdf-split-preview-meta">
+                  <strong className="pdf-split-preview-title">
+                    {isEn ? 'Preview & Select Pages' : 'Pratinjau & Pilih Halaman'}
+                  </strong>
+                  <span className="pdf-split-preview-subtitle">
+                    {isEn
+                      ? `${selectedPageSet.size} of ${pdfDocInfo.pageCount} pages selected • Click to toggle, Shift+Click for range`
+                      : `${selectedPageSet.size} dari ${pdfDocInfo.pageCount} halaman dipilih • Klik untuk pilih, Shift+Klik untuk rentang`}
+                    {isRenderingThumbnails && (
+                      <span className="pdf-split-preview-loading">
+                        {isEn
+                          ? ` • Loading preview ${renderedThumbCount}/${pdfDocInfo.pageCount}...`
+                          : ` • Memuat pratinjau ${renderedThumbCount}/${pdfDocInfo.pageCount}...`}
+                      </span>
                     )}
                   </span>
-                </button>
+                </div>
+
+                <div className="pdf-split-preview-actions">
+                  <button
+                    type="button"
+                    className="doc-quick-chip"
+                    onClick={handleSelectAllPages}
+                    disabled={isBusy || selectedPageSet.size === pdfDocInfo.pageCount}
+                  >
+                    {isEn ? 'Select All' : 'Pilih Semua'}
+                  </button>
+                  <button
+                    type="button"
+                    className="doc-quick-chip"
+                    onClick={handleClearSelection}
+                    disabled={isBusy || selectedPageSet.size === 0}
+                  >
+                    {isEn ? 'Clear' : 'Kosongkan'}
+                  </button>
+                </div>
+              </div>
+
+              <div
+                className="pdf-split-pages-grid"
+                role="region"
+                aria-label={isEn ? 'PDF pages preview' : 'Pratinjau halaman PDF'}
+              >
+                {Array.from({ length: pdfDocInfo.pageCount }, (_, idx) => {
+                  const pageNum = idx + 1
+                  const thumbUrl = pageThumbnails[pageNum]
+                  const isSelected = selectedPageSet.has(pageNum)
+
+                  const activeFraction = Math.min(0.88, 1 - Math.exp(-pageTick * 0.22))
+                  const loadingPct = !isRenderingThumbnails
+                    ? 100
+                    : pageNum === activeRenderPage
+                      ? Math.min(95, Math.max(14, Math.round(14 + activeFraction * 81)))
+                      : pageNum > activeRenderPage
+                        ? Math.min(
+                            88,
+                            Math.max(
+                              6,
+                              Math.round(((renderedThumbCount + activeFraction) / pageNum) * 84)
+                            )
+                          )
+                        : 96
+
+                  const loadingOverlay = isRenderingThumbnails ? (
+                    <div
+                      className="pdf-split-page-loader"
+                      role="status"
+                      aria-label={
+                        isEn
+                          ? `Loading page ${pageNum} preview ${loadingPct}%`
+                          : `Memuat pratinjau halaman ${pageNum} ${loadingPct}%`
+                      }
+                    >
+                      <span className="pdf-page-progress-pct">{loadingPct}%</span>
+                    </div>
+                  ) : (
+                    <div className="pdf-split-page-skeleton">
+                      <IconFileText size={20} />
+                      <span>{pageNum}</span>
+                    </div>
+                  )
+
+                  return (
+                    <button
+                      key={pageNum}
+                      type="button"
+                      aria-pressed={isSelected}
+                      disabled={isBusy}
+                      onClick={(e) => handleTogglePage(pageNum, e)}
+                      className={`pdf-split-page-card is-selectable ${
+                        isSelected ? 'is-selected' : 'is-unselected'
+                      }`}
+                    >
+                      <div className="pdf-split-page-top">
+                        <span className="pdf-split-page-num">
+                          {isEn ? `Page ${pageNum}` : `Hal. ${pageNum}`}
+                        </span>
+                        <span className="pdf-split-page-check" aria-hidden="true">
+                          {isSelected && <IconCheck size={11} />}
+                        </span>
+                      </div>
+
+                      <div className="pdf-split-page-thumb">
+                        {thumbUrl ? (
+                          <img
+                            src={thumbUrl}
+                            alt={isEn ? `Page ${pageNum} preview` : `Pratinjau halaman ${pageNum}`}
+                            loading="lazy"
+                          />
+                        ) : (
+                          loadingOverlay
+                        )}
+                      </div>
+
+                      <div className="pdf-split-page-footer">
+                        <span className="pdf-split-page-status">
+                          {isSelected
+                            ? isEn
+                              ? 'Selected'
+                              : 'Dipilih'
+                            : isEn
+                              ? 'Not selected'
+                              : 'Tidak dipilih'}
+                        </span>
+                      </div>
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
-            {extractMode === 'range' && (
-              <div className="pdf-range-input-wrapper">
-                <div className="clean-input-box">
-                  <input
-                    ref={rangeInputRef}
-                    type="text"
-                    className="clean-text-input"
-                    placeholder={
-                      isEn
-                        ? `Enter page range (1 to ${pdfDocInfo.pageCount}), e.g. 1-3, 5`
-                        : `Ketik rentang halaman (1 s/d ${pdfDocInfo.pageCount}), misal: 1-3, 5`
-                    }
-                    value={rangeInput}
-                    onChange={(e) => {
-                      setRangeInput(e.target.value)
-                      setErrorMsg('')
-                    }}
-                    aria-label={isEn ? 'Custom Page Range' : 'Rentang Halaman Kustom'}
-                  />
-                  {rangeInput && (
-                    <button
-                      type="button"
-                      className="clean-clear-btn"
-                      onClick={() => {
-                        setRangeInput('')
-                        rangeInputRef.current?.focus()
-                      }}
-                      title={isEn ? 'Clear range' : 'Bersihkan rentang'}
-                      aria-label={isEn ? 'Clear range' : 'Bersihkan rentang'}
-                    >
-                      <IconClose size={12} />
-                    </button>
-                  )}
-                </div>
-
-                {rangePreview && (
-                  <div
-                    className={`pdf-range-preview-hint ${
-                      rangePreview.error ? 'is-invalid' : 'is-valid'
-                    }`}
-                  >
-                    {rangePreview.error ? (
-                      <span>{rangePreview.error}</span>
-                    ) : (
-                      <span>
-                        {isEn ? (
-                          <>
-                            Will convert <strong>{rangePreview.pages.length} pages</strong> (Pages:{' '}
-                            {rangePreview.pages.join(', ')}) out of {pdfDocInfo.pageCount} total
-                            pages.
-                          </>
-                        ) : (
-                          <>
-                            Akan mengubah <strong>{rangePreview.pages.length} halaman</strong>{' '}
-                            (Halaman: {rangePreview.pages.join(', ')}) dari total{' '}
-                            {pdfDocInfo.pageCount} halaman.
-                          </>
-                        )}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="img-pdf-settings-bar">
+            <div className="img-pdf-settings-bar" style={{ marginTop: '14px' }}>
               <div className="img-pdf-setting-group">
                 <span className="img-pdf-setting-label">
                   {isEn ? 'Image Format' : 'Format Gambar'}
@@ -499,8 +647,9 @@ export default function PdfToImagePage() {
                 className="clean-submit-btn pdf-submit-btn"
                 disabled={
                   isBusy ||
-                  (extractMode === 'range' &&
-                    (!rangePreview || rangePreview.error || rangePreview.pages.length === 0))
+                  !rangePreview ||
+                  Boolean(rangePreview.error) ||
+                  rangePreview.pages.length === 0
                 }
               >
                 <span>
