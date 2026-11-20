@@ -456,6 +456,7 @@ function TinulungAppShell() {
   const qfSliderRef = useRef(null)
   const qfDragRef = useRef({ active: false, moved: false, startX: 0, startScrollLeft: 0 })
   const [qfSlideIndex, setQfSlideIndex] = useState(0)
+  const [qfDotCount, setQfDotCount] = useState(6)
   const [isQfPaused, setIsQfPaused] = useState(false)
   const [isQfDragging, setIsQfDragging] = useState(false)
 
@@ -466,7 +467,7 @@ function TinulungAppShell() {
     if (!firstCard) return
     const cardW = firstCard.getBoundingClientRect().width
     const gap = 14
-    const totalCards = track.querySelectorAll('.quick-feature-card').length || 7
+    const totalCards = track.querySelectorAll('.quick-feature-card').length || 8
     const maxScroll = Math.max(0, track.scrollWidth - track.clientWidth)
     const visibleCount = Math.max(1, Math.round(track.clientWidth / (cardW + gap)))
     const maxIndex = Math.max(0, totalCards - visibleCount)
@@ -483,9 +484,36 @@ function TinulungAppShell() {
     if (!firstCard) return
     const step = firstCard.getBoundingClientRect().width + 14
     if (step <= 0) return
-    const idx = Math.round(track.scrollLeft / step)
+    const totalCards = track.querySelectorAll('.quick-feature-card').length || 8
+    const maxScroll = Math.max(0, track.scrollWidth - track.clientWidth)
+    const visibleCount = Math.max(1, Math.round(track.clientWidth / step))
+    const maxIndex = Math.max(0, totalCards - visibleCount)
+    const idx =
+      maxScroll > 0 && track.scrollLeft >= maxScroll - 2
+        ? maxIndex
+        : Math.min(maxIndex, Math.max(0, Math.round(track.scrollLeft / step)))
     setQfSlideIndex(idx)
   }, [])
+
+  useEffect(() => {
+    if (location.pathname !== '/') return undefined
+    const updateDotCount = () => {
+      const track = qfSliderRef.current
+      if (!track) return
+      const firstCard = track.querySelector('.quick-feature-card')
+      if (!firstCard) return
+      const step = firstCard.getBoundingClientRect().width + 14
+      if (step <= 0) return
+      const totalCards = track.querySelectorAll('.quick-feature-card').length || 8
+      const visibleCount = Math.max(1, Math.round(track.clientWidth / step))
+      const maxIndex = Math.max(0, totalCards - visibleCount)
+      setQfDotCount(maxIndex + 1)
+    }
+
+    updateDotCount()
+    window.addEventListener('resize', updateDotCount)
+    return () => window.removeEventListener('resize', updateDotCount)
+  }, [location.pathname])
 
   const handleQfMouseDown = useCallback((e) => {
     if (e.button !== 0) return
@@ -1579,7 +1607,7 @@ function TinulungAppShell() {
           role="tablist"
           aria-label={isEn ? 'Feature slider position' : 'Posisi slider fitur'}
         >
-          {[0, 1, 2, 3, 4].map((dotIdx) => (
+          {Array.from({ length: qfDotCount }, (_, dotIdx) => (
             <button
               key={dotIdx}
               type="button"

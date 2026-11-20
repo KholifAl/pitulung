@@ -26,6 +26,15 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url)
     const { pathname } = url
+
+    // 301 Permanent Redirect dari domain lama (.my.id) ke domain baru (.id)
+    if (url.hostname === 'tinulung.my.id' || url.hostname === 'www.tinulung.my.id') {
+      const redirectUrl = new URL(request.url)
+      redirectUrl.hostname = 'tinulung.id'
+      redirectUrl.protocol = 'https:'
+      return Response.redirect(redirectUrl.toString(), 301)
+    }
+
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown'
 
     if (pathname === '/api/ai/status') {
